@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>One Thing — A Focus Game</title>
+<meta name="description" content="Five focus-training mini-games rooted in attention-science research. Each with its own level progression. Playable on phone and web — no accounts, no analytics.">
+<meta name="theme-color" content="#FAFAF7">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<title>Focus Games — Five attention-training mini-games</title>
 <style>
   :root {
     --bg: #FAFAF7;
@@ -403,21 +408,121 @@
   /* Prevent iOS pinch-zoom interfering with the game */
   body { touch-action: manipulation; }
   canvas { touch-action: none; } /* Stop pull-to-refresh on canvas */
+
+  /* ===== HOME (multi-game hub) ===== */
+  .home-tagline { color: var(--muted); font-size: 14px; margin: 4px 0 28px; max-width: 560px; line-height: 1.55; }
+  .games-grid { display: grid; gap: 14px; }
+  .game-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 18px;
+    align-items: center;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s, box-shadow .15s;
+  }
+  .game-card:hover { border-color: var(--ink); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .game-card .accent-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--card-accent, var(--accent));
+    flex-shrink: 0;
+  }
+  .game-card .info .name { font-weight: 600; font-size: 19px; letter-spacing: -0.3px; }
+  .game-card .info .tagline { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .game-card .info .progress { color: var(--muted); font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .game-card .info .progress .num { color: var(--ink); font-weight: 600; }
+  .game-card .open-arrow { color: var(--muted); font-size: 18px; transition: color .15s, transform .15s; }
+  .game-card:hover .open-arrow { color: var(--ink); transform: translateX(2px); }
+
+  /* Back-to-home link in level menu */
+  .menu-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--muted); font-size: 13px; padding: 4px 0;
+    margin-bottom: 12px;
+  }
+  .menu-back:hover { color: var(--ink); }
+  .menu-game-accent { color: var(--accent); }
+
+  /* Schulte tile shake animation (used during reshuffles) */
+  .schulte-shake { animation: schulteShake .3s ease-in-out; }
+  @keyframes schulteShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+  }
+
+  /* N-Back panel cue */
+  .nback-cue {
+    position: absolute; top: 72px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.4px;
+    color: var(--muted); text-transform: uppercase;
+    pointer-events: none; z-index: 3;
+  }
+  .nback-cue strong { color: var(--accent); }
+
+  /* Stroop rule cue (for L4 rule-switch) */
+  .stroop-cue {
+    position: absolute; top: 72px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    color: var(--ink);
+    pointer-events: none; z-index: 3;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .stroop-cue.match-word { background: #FBF0EE; color: var(--bad); border-color: var(--bad); }
+  .stroop-cue.match-ink { background: #EFF5FB; color: var(--accent); border-color: var(--accent); }
+
+  /* Flanker rule cue (for L4 rule-switch) */
+  .flanker-cue {
+    position: absolute; top: 72px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 8px 18px; border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    color: var(--ink);
+    pointer-events: none; z-index: 3;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .flanker-cue.opposite { background: #FBF0EE; color: var(--bad); border-color: var(--bad); }
 </style>
 </head>
 <body>
 
-<!-- MENU -->
-<div class="app" id="menu">
+<!-- HOME (game hub) -->
+<div class="app" id="home">
   <div class="header">
-    <h1>One Thing</h1>
+    <h1>Focus Games</h1>
   </div>
-  <p class="subtitle">A focus game grounded in attention-science research. Practice single-tasking. Twelve levels, twelve paradigms.</p>
+  <p class="home-tagline">Five focus-training games rooted in attention-science research. Each with its own level progression. Pick one and practice single-tasking — on phone or web.</p>
+
+  <div class="meta">
+    <div>Streak: <span class="num" id="homeStreak">0</span> days</div>
+    <div>Total sessions: <span class="num" id="homeTotalSessions">0</span></div>
+    <button class="audio-toggle" id="homeAudioToggle">Audio: off</button>
+  </div>
+
+  <div class="games-grid" id="gamesGrid"></div>
+
+  <p class="footer-note">All progress is stored locally on this device. No accounts, no analytics.</p>
+</div>
+
+<!-- MENU (per-game level list) -->
+<div class="app" id="menu" style="display: none;">
+  <button class="menu-back" id="menuBack">← All games</button>
+  <div class="header">
+    <h1 id="menuGameName">One Thing</h1>
+  </div>
+  <p class="subtitle" id="menuGameTagline">A focus game grounded in attention-science research. Practice single-tasking. Twelve levels, twelve paradigms.</p>
 
   <div class="meta">
     <div>Streak: <span class="num" id="streak">0</span> days</div>
     <div>Sessions: <span class="num" id="totalSessions">0</span></div>
-    <div>Unlocked: <span class="num" id="unlockedCount">1</span>/12</div>
+    <div>Unlocked: <span class="num" id="unlockedCount">1</span>/<span id="unlockedTotal">12</span></div>
     <button class="audio-toggle" id="audioToggle">Audio: off</button>
   </div>
 
@@ -491,12 +596,16 @@
 // ==========================================================================
 
 const STORAGE_KEY = 'oneThing.v1';
+const GAME_IDS = ['oneThing', 'schulte', 'flanker', 'stroop', 'nback'];
+
+function emptyGameProgress() {
+  return { unlockedLevel: 1, bestScores: {}, sessions: [] };
+}
 
 const DEFAULT_STATE = {
-  unlockedLevel: 1,
-  bestScores: {},        // levelId -> score (lower is better)
-  sessions: [],          // last 30 { levelId, score, accuracy, ts }
-  streak: 0,             // consecutive-day streak
+  version: 2,
+  games: GAME_IDS.reduce((acc, id) => { acc[id] = emptyGameProgress(); return acc; }, {}),
+  streak: 0,             // consecutive-day streak (global)
   lastPlayedDay: null,   // YYYY-MM-DD
   audioEnabled: false,
 };
@@ -506,15 +615,38 @@ let STATE = loadState();
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_STATE };
-    return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+    if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const parsed = JSON.parse(raw);
+    const fresh = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    // Migration: old v1 schema had top-level sessions/bestScores/unlockedLevel
+    if (!parsed.version || !parsed.games) {
+      fresh.games.oneThing = {
+        unlockedLevel: parsed.unlockedLevel || 1,
+        bestScores: parsed.bestScores || {},
+        sessions: parsed.sessions || [],
+      };
+      fresh.streak = parsed.streak || 0;
+      fresh.lastPlayedDay = parsed.lastPlayedDay || null;
+      fresh.audioEnabled = !!parsed.audioEnabled;
+      return fresh;
+    }
+    // v2 schema — merge with defaults so any newly added games show up
+    fresh.streak = parsed.streak || 0;
+    fresh.lastPlayedDay = parsed.lastPlayedDay || null;
+    fresh.audioEnabled = !!parsed.audioEnabled;
+    for (const id of GAME_IDS) {
+      const src = parsed.games && parsed.games[id];
+      if (src) fresh.games[id] = { ...emptyGameProgress(), ...src };
+    }
+    return fresh;
   } catch (e) {
-    return { ...DEFAULT_STATE };
+    return JSON.parse(JSON.stringify(DEFAULT_STATE));
   }
 }
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); } catch (e) {}
 }
+function gameState(gameId) { return STATE.games[gameId || currentGameId]; }
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -523,14 +655,15 @@ function dayDiff(a, b) {
   const A = new Date(a), B = new Date(b);
   return Math.round((B - A) / (1000*60*60*24));
 }
-function recordSessionCompletion(levelId, score, accuracy) {
+function recordSessionCompletion(gameId, levelId, score, accuracy) {
   const ts = Date.now();
-  STATE.sessions.push({ levelId, score, accuracy, ts });
-  if (STATE.sessions.length > 30) STATE.sessions = STATE.sessions.slice(-30);
-  if (STATE.bestScores[levelId] == null || score < STATE.bestScores[levelId]) {
-    STATE.bestScores[levelId] = score;
+  const gs = STATE.games[gameId];
+  gs.sessions.push({ levelId, score, accuracy, ts });
+  if (gs.sessions.length > 30) gs.sessions = gs.sessions.slice(-30);
+  if (gs.bestScores[levelId] == null || score < gs.bestScores[levelId]) {
+    gs.bestScores[levelId] = score;
   }
-  // Streak
+  // Streak (global)
   const today = todayStr();
   if (STATE.lastPlayedDay !== today) {
     if (STATE.lastPlayedDay && dayDiff(STATE.lastPlayedDay, today) === 1) {
@@ -538,13 +671,14 @@ function recordSessionCompletion(levelId, score, accuracy) {
     } else if (!STATE.lastPlayedDay) {
       STATE.streak = 1;
     } else {
-      STATE.streak = 1; // reset
+      STATE.streak = 1;
     }
     STATE.lastPlayedDay = today;
   }
-  // Unlock next level if accuracy threshold met
-  if (accuracy >= 0.75 && levelId === STATE.unlockedLevel && STATE.unlockedLevel < TOTAL_LEVELS) {
-    STATE.unlockedLevel = levelId + 1;
+  // Unlock next level in this game if accuracy threshold met
+  const total = GAMES_BY_ID[gameId].totalLevels;
+  if (accuracy >= 0.75 && levelId === gs.unlockedLevel && gs.unlockedLevel < total) {
+    gs.unlockedLevel = levelId + 1;
   }
   saveState();
 }
@@ -599,7 +733,7 @@ const audio = {
 // LEVEL DEFINITIONS (metadata)
 // ==========================================================================
 
-const LEVEL_META = {
+let LEVEL_META = {
   1: {
     name: "Hold the Dot",
     paradigm: "Sustained Attention",
@@ -746,7 +880,64 @@ const LEVEL_META = {
   },
 };
 
-const TOTAL_LEVELS = 12;
+let TOTAL_LEVELS = 12;
+
+// ==========================================================================
+// GAME REGISTRY — multi-game hub
+// ==========================================================================
+// LEVEL_META above is "One Thing" metadata — kept as initial value for back-compat.
+// Each game's metadata sits under GAME_META[id]; the new games' metadata is filled
+// in toward the end of the script (so each game's level constructors can be co-located
+// with its metadata). selectGame(id) reassigns LEVEL_META + TOTAL_LEVELS at runtime.
+
+let currentGameId = 'oneThing';
+const GAME_META = { oneThing: LEVEL_META };
+// GAME_META.schulte / .flanker / .stroop / .nback added at end of script
+
+const GAMES = [
+  {
+    id: 'oneThing',
+    name: 'One Thing',
+    tagline: '12 paradigms — sustained attention, inhibition, dual-task, search, breath',
+    accent: '#5B7CFA',
+    totalLevels: 12,
+  },
+  {
+    id: 'schulte',
+    name: 'Schulte 25',
+    tagline: 'Tap numbers 1 → N in order. Trains visual search and attention anchoring.',
+    accent: '#E08E45',
+    totalLevels: 5,
+  },
+  {
+    id: 'flanker',
+    name: 'Arrow Flanker',
+    tagline: 'Answer the center arrow. Ignore the flankers. Trains selective attention.',
+    accent: '#4FA877',
+    totalLevels: 5,
+  },
+  {
+    id: 'stroop',
+    name: 'Color Conflict',
+    tagline: 'Word vs. ink — pick the ink. Trains interference control.',
+    accent: '#B86FB1',
+    totalLevels: 5,
+  },
+  {
+    id: 'nback',
+    name: 'N-Back',
+    tagline: 'Match the symbol from N steps ago. Trains working memory and focus.',
+    accent: '#3FA6BD',
+    totalLevels: 5,
+  },
+];
+const GAMES_BY_ID = Object.fromEntries(GAMES.map(g => [g.id, g]));
+
+function selectGame(gameId) {
+  currentGameId = gameId;
+  LEVEL_META = GAME_META[gameId];
+  TOTAL_LEVELS = GAMES_BY_ID[gameId].totalLevels;
+}
 
 const PRACTICE_DURATION = 30; // seconds
 const READY_PROMPT_TEXT = "Practice over. The real session counts toward your score and unlock progress.";
@@ -757,18 +948,70 @@ const HONEST_NOTE = "These tasks reliably measure attention; with practice you'l
 // MENU RENDER
 // ==========================================================================
 
+function renderHome() {
+  document.getElementById('homeStreak').textContent = STATE.streak;
+  let totalSessions = 0;
+  for (const id of GAME_IDS) totalSessions += (STATE.games[id]?.sessions?.length || 0);
+  document.getElementById('homeTotalSessions').textContent = totalSessions;
+  document.getElementById('homeAudioToggle').textContent = `Audio: ${STATE.audioEnabled ? 'on' : 'off'}`;
+
+  const grid = document.getElementById('gamesGrid');
+  grid.innerHTML = '';
+  for (const game of GAMES) {
+    const gs = STATE.games[game.id];
+    const unlocked = gs.unlockedLevel;
+    const sessions = gs.sessions.length;
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.style.setProperty('--card-accent', game.accent);
+    card.innerHTML = `
+      <div class="accent-dot"></div>
+      <div class="info">
+        <div class="name">${game.name}</div>
+        <div class="tagline">${game.tagline}</div>
+        <div class="progress">
+          <span class="num">${unlocked}</span>/${game.totalLevels} unlocked
+          ${sessions ? ` · <span class="num">${sessions}</span> session${sessions === 1 ? '' : 's'}` : ''}
+        </div>
+      </div>
+      <div class="open-arrow">→</div>
+    `;
+    card.addEventListener('click', () => openGame(game.id));
+    grid.appendChild(card);
+  }
+}
+
+function openGame(gameId) {
+  selectGame(gameId);
+  document.getElementById('home').style.display = 'none';
+  document.getElementById('menu').style.display = 'block';
+  renderMenu();
+}
+
+function backToHome() {
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('home').style.display = 'block';
+  renderHome();
+}
+
 function renderMenu() {
+  const game = GAMES_BY_ID[currentGameId];
+  document.documentElement.style.setProperty('--accent', game.accent);
+  document.getElementById('menuGameName').textContent = game.name;
+  document.getElementById('menuGameTagline').textContent = game.tagline;
+  const gs = gameState();
   document.getElementById('streak').textContent = STATE.streak;
-  document.getElementById('totalSessions').textContent = STATE.sessions.length;
-  document.getElementById('unlockedCount').textContent = STATE.unlockedLevel;
+  document.getElementById('totalSessions').textContent = gs.sessions.length;
+  document.getElementById('unlockedCount').textContent = gs.unlockedLevel;
+  document.getElementById('unlockedTotal').textContent = game.totalLevels;
   document.getElementById('audioToggle').textContent = `Audio: ${STATE.audioEnabled ? 'on' : 'off'}`;
 
   const container = document.getElementById('levels');
   container.innerHTML = '';
   for (let i = 1; i <= TOTAL_LEVELS; i++) {
     const meta = LEVEL_META[i];
-    const locked = i > STATE.unlockedLevel;
-    const best = STATE.bestScores[i];
+    const locked = i > gs.unlockedLevel;
+    const best = gs.bestScores[i];
     const card = document.createElement('div');
     card.className = 'level-card' + (locked ? ' locked' : '');
     card.innerHTML = `
@@ -787,11 +1030,10 @@ function renderMenu() {
     `;
     container.appendChild(card);
   }
-  // Wire up
   container.querySelectorAll('[data-play]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = +btn.dataset.play;
-      if (id > STATE.unlockedLevel) return;
+      if (id > gs.unlockedLevel) return;
       openTutorial(id);
     });
   });
@@ -800,11 +1042,16 @@ function renderMenu() {
   });
 }
 
-document.getElementById('audioToggle').addEventListener('click', () => {
+function toggleAudio() {
   STATE.audioEnabled = !STATE.audioEnabled;
-  saveState(); renderMenu();
+  saveState();
+  renderHome();
+  if (document.getElementById('menu').style.display !== 'none') renderMenu();
   if (STATE.audioEnabled) audio.ensure();
-});
+}
+document.getElementById('audioToggle').addEventListener('click', toggleAudio);
+document.getElementById('homeAudioToggle').addEventListener('click', toggleAudio);
+document.getElementById('menuBack').addEventListener('click', backToHome);
 
 // ==========================================================================
 // MODALS
@@ -838,6 +1085,9 @@ function openTutorial(levelId) {
 }
 function tutorialBodyHTML(levelId) {
   const meta = LEVEL_META[levelId];
+  if (currentGameId !== 'oneThing') {
+    return meta.tutorialBody || `<p>${meta.short}</p>`;
+  }
   const lines = {
     1: `<p>${meta.short}</p>
         <ul>
@@ -1112,7 +1362,7 @@ function countdownThenRun(levelId) {
 function runPractice(levelId) {
   gamePhase = 'practice';
   showPracticeBadge();
-  levelInstance = makeLevel(levelId);
+  levelInstance = makeLevel(currentGameId, levelId);
   const env = {
     canvas, ctx, overlay, stage, audio,
     flash: feedback,
@@ -1175,7 +1425,7 @@ function showReadyPrompt(levelId) {
 
 function runLive(levelId) {
   gamePhase = 'live';
-  levelInstance = makeLevel(levelId);
+  levelInstance = makeLevel(currentGameId, levelId);
   const env = {
     canvas, ctx, overlay, stage, audio,
     flash: feedback,
@@ -1197,7 +1447,7 @@ function finishLevel() {
   cancelAnimationFrame(rafId);
   rafId = null;
   const result = levelInstance.finish();
-  recordSessionCompletion(levelInstance.id, result.score, result.accuracy);
+  recordSessionCompletion(currentGameId, levelInstance.id, result.score, result.accuracy);
   showResults(levelInstance.id, result);
   levelInstance = null;
   gamePhase = 'idle';
@@ -1258,8 +1508,10 @@ canvas.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive:
 
 function showResults(levelId, result) {
   const meta = LEVEL_META[levelId];
+  const game = GAMES_BY_ID[currentGameId];
+  const gs = gameState();
   document.getElementById('resTitle').textContent = `Level ${levelId} complete`;
-  document.getElementById('resSub').textContent = `${meta.name} · ${meta.paradigm}`;
+  document.getElementById('resSub').textContent = `${game.name} · ${meta.name} · ${meta.paradigm}`;
   const m = document.getElementById('resMetrics');
   m.innerHTML = '';
   result.metrics.forEach(metric => {
@@ -1270,16 +1522,15 @@ function showResults(levelId, result) {
   });
   const v = document.getElementById('resVerdict');
   const passed = result.accuracy >= 0.75;
-  const bestScore = STATE.bestScores[levelId];
-  const wasNewBest = bestScore != null && Math.round(bestScore) === Math.round(result.score) && (STATE.sessions.length === 0 || result.score === bestScore);
+  const hasNextLevel = levelId < game.totalLevels;
   v.className = 'verdict ' + (passed ? 'passed' : 'failed');
   let verdictMsg;
   if (passed) {
-    verdictMsg = levelId < 6 && STATE.unlockedLevel > levelId
-      ? `Passed at ${Math.round(result.accuracy*100)}% accuracy. ${levelId < 6 ? `Level ${levelId+1} unlocked.` : ''}`
+    verdictMsg = hasNextLevel && gs.unlockedLevel > levelId
+      ? `Passed at ${Math.round(result.accuracy*100)}% accuracy. Level ${levelId+1} unlocked.`
       : `Passed at ${Math.round(result.accuracy*100)}% accuracy.`;
   } else {
-    verdictMsg = `Accuracy ${Math.round(result.accuracy*100)}% — need ≥75% to ${levelId < 6 ? `unlock the next level` : 'count as a clean run'}. Try again.`;
+    verdictMsg = `Accuracy ${Math.round(result.accuracy*100)}% — need ≥75% to ${hasNextLevel ? `unlock the next level` : 'count as a clean run'}. Try again.`;
   }
   v.textContent = verdictMsg;
   document.getElementById('resultsModal').classList.add('active');
@@ -1301,7 +1552,15 @@ function showResults(levelId, result) {
 // LEVEL CONSTRUCTORS
 // ==========================================================================
 
-function makeLevel(id) {
+function makeLevel(gameId, levelId) {
+  if (gameId === 'oneThing') return makeOneThingLevel(levelId);
+  if (gameId === 'schulte') return makeSchulteLevel(levelId);
+  if (gameId === 'flanker') return makeFlankerLevel(levelId);
+  if (gameId === 'stroop') return makeStroopLevel(levelId);
+  if (gameId === 'nback') return makeNbackLevel(levelId);
+}
+
+function makeOneThingLevel(id) {
   switch (id) {
     case 1: return makeLevel1();
     case 2: return makeLevel2();
@@ -2965,10 +3224,1055 @@ function makeLevel12() {
 }
 
 // ==========================================================================
+// SCHULTE 25 — visual search / attention anchoring (5 levels)
+// ==========================================================================
+
+GAME_META.schulte = {
+  1: {
+    name: "Sequential 4×4",
+    paradigm: "Schulte Table",
+    short: "Tap numbers 1 → 16 in order. Beat your time.",
+    rule: `Tap the next number &nbsp;·&nbsp; <strong>1, 2, 3, …</strong>`,
+    duration: 90,
+    accent: "#E08E45",
+    science: {
+      description: "Schulte tables — used for attention training since the 1950s — force you to scan a noisy field without losing your place. The skill that improves isn't seeing faster; it's keeping eyes calm and attention anchored to the next target.",
+      citation: "Schulte, F. (1955). Manual for the Schulte attention tables.",
+    },
+    tutorialBody: `<p>Tap numbers in order: 1, 2, 3 … up to 16.</p>
+      <ul>
+        <li>Aim for a steady scan, not random hunting.</li>
+        <li>When you finish a grid, a new one starts immediately. Beat your time.</li>
+        <li>Wrong taps add 50 points (lower score is better).</li>
+      </ul>`,
+  },
+  2: {
+    name: "Classic 5×5",
+    paradigm: "Schulte Table",
+    short: "Tap numbers 1 → 25 on a 5×5 grid.",
+    rule: `Tap <strong>1 → 25</strong> in order &nbsp;·&nbsp; no skipping`,
+    duration: 120,
+    accent: "#E08E45",
+    science: {
+      description: "The classic 25-cell Schulte table is the original attention drill. Pros call it a 'shifting fixation' workout — your gaze can land anywhere, but your attention has to stay locked on the next target until you find it.",
+      citation: "Schulte, F. (1955).",
+    },
+    tutorialBody: `<p>Same idea, larger grid. Find 1, then 2, then 3 … up to 25.</p>
+      <ul>
+        <li>Eyes calm. Attention forward, on the next number.</li>
+        <li>Don't 'hunt' randomly — scan in a pattern (left-to-right, or spiral).</li>
+      </ul>`,
+  },
+  3: {
+    name: "Shifting Sands",
+    paradigm: "Schulte / Re-anchoring",
+    short: "5×5 grid that reshuffles every 8 seconds. Stay anchored.",
+    rule: `Tap <strong>1 → 25</strong> in order &nbsp;·&nbsp; grid <strong>reshuffles</strong> every 8s`,
+    duration: 120,
+    accent: "#E08E45",
+    science: {
+      description: "Periodic reshuffles add a re-anchoring demand: you can't memorize positions; you have to rebuild your visual map quickly. This is exactly the skill of recovering focus after a distraction.",
+      citation: "Variant inspired by attention-shift trainers (Lumosity 'Train of Thought' family).",
+    },
+    tutorialBody: `<p>5×5 grid. Tap 1 → 25 in order. Every 8 seconds the tiles shuffle.</p>
+      <ul>
+        <li>Don't memorize positions — they'll move.</li>
+        <li>When the grid shakes, scan again from where you left off.</li>
+      </ul>`,
+  },
+  4: {
+    name: "Big 6×6",
+    paradigm: "Schulte Table",
+    short: "Tap 1 → 36 on a 6×6 grid. Endurance.",
+    rule: `Tap <strong>1 → 36</strong> on a 6×6 grid &nbsp;·&nbsp; longer scan, more cells`,
+    duration: 150,
+    accent: "#E08E45",
+    science: {
+      description: "Bigger grid → more candidate cells per scan → more attentional load per tap. This is the endurance variant; the score rewards holding pace from grid 1 to grid 4.",
+      citation: "Schulte, F. (1955), large-table variants.",
+    },
+    tutorialBody: `<p>6×6 grid. Tap 1 → 36 in order.</p>
+      <ul>
+        <li>Pace yourself. Steady is faster than rushed.</li>
+        <li>Mistakes cost 50 points. Don't tap the wrong number trying to be fast.</li>
+      </ul>`,
+  },
+  5: {
+    name: "Two-Color Twist",
+    paradigm: "Schulte / Color Switching",
+    short: "5×5 grid. Tap 1 → 25 in order — but odd numbers are red, even are black. Eyes have to switch each tap.",
+    rule: `<strong>1 → 25</strong> in order &nbsp;·&nbsp; odd = <span style="color:#D17B6F"><strong>red</strong></span>, even = black`,
+    duration: 150,
+    accent: "#E08E45",
+    science: {
+      description: "Adding color to alternate cells forces a feature-based attention switch on every tap. Your visual system can't 'pop out' the next target by color alone — you need the right number AND the right color, switching back and forth.",
+      citation: "Two-color Schulte variants used in attention-training literature.",
+    },
+    tutorialBody: `<p>5×5 grid. Tap 1, 2, 3 … 25 in order.</p>
+      <ul>
+        <li>Odd numbers (1, 3, 5 …) are <span style="color:#D17B6F"><strong>red</strong></span>.</li>
+        <li>Even numbers (2, 4, 6 …) are <strong>black</strong>.</li>
+        <li>Both colors mixed in the grid. Your eyes have to switch each tap.</li>
+      </ul>`,
+  },
+};
+
+function makeSchulteLevel(id) {
+  switch (id) {
+    case 1: return makeSchulteCore({ id: 1, gridSize: 4 });
+    case 2: return makeSchulteCore({ id: 2, gridSize: 5 });
+    case 3: return makeSchulteCore({ id: 3, gridSize: 5, reshuffleMs: 8000 });
+    case 4: return makeSchulteCore({ id: 4, gridSize: 6 });
+    case 5: return makeSchulteCore({ id: 5, gridSize: 5, dualColor: true });
+  }
+}
+
+function makeSchulteCore(opts) {
+  let w, h;
+  let cells = [];
+  let nextValue = 1;
+  let lastShuffleAt = 0;
+  let shakeUntil = 0;
+  const stats = { gridsCompleted: 0, hits: 0, misses: 0, gridStart: 0, gridTimes: [] };
+
+  function cellSize() {
+    const s = Math.min(w / (opts.gridSize + 1), (h - 100) / (opts.gridSize + 1));
+    return Math.max(40, Math.min(s, 110));
+  }
+  function offsets() {
+    const cs = cellSize();
+    const totalW = cs * opts.gridSize;
+    const totalH = cs * opts.gridSize;
+    return { cs, ox: (w - totalW) / 2, oy: (h - totalH) / 2 + 20 };
+  }
+  function shuffleArray(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function placeCells(values) {
+    const { cs, ox, oy } = offsets();
+    const N = values.length;
+    const positions = shuffleArray(Array.from({ length: N }, (_, i) => i));
+    cells = values.map((v, i) => {
+      const pos = positions[i];
+      const row = Math.floor(pos / opts.gridSize);
+      const col = pos % opts.gridSize;
+      return {
+        value: v.v,
+        color: v.color,
+        x: ox + col * cs + cs / 2,
+        y: oy + row * cs + cs / 2,
+        size: cs * 0.86,
+      };
+    });
+  }
+  function reshufflePositions(now) {
+    const { cs, ox, oy } = offsets();
+    const N = cells.length;
+    const positions = shuffleArray(Array.from({ length: N }, (_, i) => i));
+    for (let i = 0; i < N; i++) {
+      const pos = positions[i];
+      const row = Math.floor(pos / opts.gridSize);
+      const col = pos % opts.gridSize;
+      cells[i].x = ox + col * cs + cs / 2;
+      cells[i].y = oy + row * cs + cs / 2;
+      cells[i].size = cs * 0.86;
+    }
+    shakeUntil = now + 250;
+    lastShuffleAt = now;
+  }
+  function newGrid(now) {
+    const N = opts.gridSize * opts.gridSize;
+    const values = [];
+    for (let i = 1; i <= N; i++) {
+      const color = opts.dualColor ? (i % 2 === 1 ? 'red' : 'black') : 'black';
+      values.push({ v: i, color });
+    }
+    placeCells(values);
+    nextValue = 1;
+    stats.gridStart = now;
+    lastShuffleAt = now;
+  }
+  function colorFor(cell, isNext) {
+    if (cell.color === 'red') return '#D17B6F';
+    return isNext ? '#E08E45' : '#2A2A2A';
+  }
+  function roundedRectPath(cx, cy, half, r) {
+    ctx.beginPath();
+    ctx.moveTo(cx - half + r, cy - half);
+    ctx.lineTo(cx + half - r, cy - half);
+    ctx.quadraticCurveTo(cx + half, cy - half, cx + half, cy - half + r);
+    ctx.lineTo(cx + half, cy + half - r);
+    ctx.quadraticCurveTo(cx + half, cy + half, cx + half - r, cy + half);
+    ctx.lineTo(cx - half + r, cy + half);
+    ctx.quadraticCurveTo(cx - half, cy + half, cx - half, cy + half - r);
+    ctx.lineTo(cx - half, cy - half + r);
+    ctx.quadraticCurveTo(cx - half, cy - half, cx - half + r, cy - half);
+    ctx.closePath();
+  }
+
+  return {
+    id: opts.id,
+    tapMode: "none",
+    onResize(width, height) {
+      w = width; h = height;
+      if (cells.length) reshufflePositions(performance.now());
+    },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      env.hint('Tap each number in order. Misses cost 50 points.');
+      newGrid(performance.now());
+    },
+    tick(now) {
+      if (opts.reshuffleMs && now - lastShuffleAt >= opts.reshuffleMs) {
+        reshufflePositions(now);
+      }
+      ctx.clearRect(0, 0, w, h);
+      const shake = now < shakeUntil ? Math.sin((now - lastShuffleAt) * 0.06) * 4 : 0;
+      const expectedColor = opts.dualColor ? (nextValue % 2 === 1 ? 'red' : 'black') : 'black';
+      for (const cell of cells) {
+        const isNext = cell.value === nextValue && cell.color === expectedColor;
+        ctx.save();
+        ctx.translate(shake, 0);
+        roundedRectPath(cell.x, cell.y, cell.size / 2, 8);
+        ctx.fillStyle = isNext ? 'rgba(224, 142, 69, 0.10)' : '#FFFFFF';
+        ctx.fill();
+        ctx.strokeStyle = isNext ? '#E08E45' : '#E5E4DE';
+        ctx.lineWidth = isNext ? 2 : 1;
+        ctx.stroke();
+        ctx.font = `600 ${Math.floor(cell.size * 0.42)}px -apple-system, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = colorFor(cell, isNext);
+        ctx.fillText(String(cell.value), cell.x, cell.y);
+        ctx.restore();
+      }
+      ctx.font = '500 13px -apple-system, system-ui, sans-serif';
+      ctx.fillStyle = '#8A8A85';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`Next: ${nextValue}${opts.dualColor ? ' (' + expectedColor + ')' : ''}`, 16, 12);
+      ctx.fillText(`Grid ${stats.gridsCompleted + 1} · hits ${stats.hits} · misses ${stats.misses}`, 16, 32);
+    },
+    handleClick(x, y) {
+      let hit = null;
+      for (const cell of cells) {
+        if (Math.abs(x - cell.x) <= cell.size / 2 && Math.abs(y - cell.y) <= cell.size / 2) {
+          hit = cell; break;
+        }
+      }
+      if (!hit) return;
+      const expectedColor = opts.dualColor ? (nextValue % 2 === 1 ? 'red' : 'black') : 'black';
+      if (hit.value === nextValue && hit.color === expectedColor) {
+        stats.hits++;
+        audio.beep(640 + Math.min(nextValue * 12, 240), 50, 0.04);
+        feedback('good', `${hit.value} ✓`);
+        nextValue++;
+        if (nextValue > opts.gridSize * opts.gridSize) {
+          const elapsed = performance.now() - stats.gridStart;
+          stats.gridsCompleted++;
+          stats.gridTimes.push(elapsed);
+          audio.good();
+          feedback('good', `Grid done in ${(elapsed/1000).toFixed(1)}s!`);
+          newGrid(performance.now());
+        }
+      } else {
+        stats.misses++;
+        audio.bad();
+        feedback('bad', opts.dualColor && hit.value === nextValue
+          ? `Right number, wrong color — looking for ${expectedColor}`
+          : `Looking for ${nextValue}`);
+      }
+    },
+    finish() {
+      const totalTaps = stats.hits + stats.misses;
+      const accuracy = totalTaps > 0 ? stats.hits / totalTaps : 0;
+      const meanGridTime = stats.gridTimes.length ? stats.gridTimes.reduce((s, x) => s + x, 0) / stats.gridTimes.length : 60000;
+      const score = (meanGridTime / 1000) * 8 + stats.misses * 50;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Grids done', value: `${stats.gridsCompleted}` },
+          { label: 'Best grid', value: stats.gridTimes.length ? `${(Math.min(...stats.gridTimes)/1000).toFixed(1)} s` : '—' },
+          { label: 'Mean grid', value: stats.gridTimes.length ? `${(meanGridTime/1000).toFixed(1)} s` : '—' },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// ARROW FLANKER — selective attention (5 levels)
+// ==========================================================================
+
+GAME_META.flanker = {
+  1: {
+    name: "Easy Flanker",
+    paradigm: "Eriksen Flanker",
+    short: "Press the direction the CENTER arrow points. Ignore the four flankers around it.",
+    rule: `Press <span class="keys"><span class="key">←</span><span class="key">→</span></span> for the <strong>center arrow</strong> &nbsp;·&nbsp; ignore flankers`,
+    duration: 90,
+    accent: "#4FA877",
+    science: {
+      description: "The Eriksen Flanker task measures your selective-attention 'spotlight'. When flankers point the same way as the target, your motor system is already primed for the right answer (fast). When flankers conflict, you must actively suppress them (slower). The slowdown is your flanker effect.",
+      citation: "Eriksen & Eriksen (1974). Effects of noise letters upon the identification of a target letter in a nonsearch task.",
+    },
+    tutorialBody: `<p>Five arrows in a row. Read only the middle one.</p>
+      <ul>
+        <li>Press <strong>←</strong> or <strong>→</strong> to match the center arrow.</li>
+        <li>The four arrows on the sides will sometimes point the wrong way to confuse you.</li>
+        <li>Ignore them. Pace is slow at this level — get the rhythm.</li>
+      </ul>`,
+  },
+  2: {
+    name: "Quick Flanker",
+    paradigm: "Eriksen Flanker / Speed",
+    short: "Same rules, faster pace.",
+    rule: `Press <span class="keys"><span class="key">←</span><span class="key">→</span></span> for the <strong>center</strong> &nbsp;·&nbsp; faster pace`,
+    duration: 90,
+    accent: "#4FA877",
+    science: {
+      description: "Halving the inter-stimulus interval shrinks your prep time, so each new trial arrives before the previous interference fully decays. The flanker effect tends to grow at fast pace — that's the load test on selective attention.",
+      citation: "Eriksen & Eriksen (1974); flanker speed studies.",
+    },
+    tutorialBody: `<p>Same as Level 1 — faster.</p>
+      <ul>
+        <li>Press <strong>←</strong> or <strong>→</strong> to match the center.</li>
+        <li>Trials come every ~1 second. Don't dwell.</li>
+      </ul>`,
+  },
+  3: {
+    name: "Neutral Mix",
+    paradigm: "Eriksen Flanker / Neutral",
+    short: "Now flankers can be neutral lines (=). Same rule — center arrow only.",
+    rule: `Center arrow only &nbsp;·&nbsp; flankers may be <strong>= = ▶ = =</strong> (neutral) or arrows`,
+    duration: 90,
+    accent: "#4FA877",
+    science: {
+      description: "Neutral flankers (no directional information) provide a baseline for the flanker effect — the difference between neutral RT and incongruent RT is your pure conflict cost.",
+      citation: "Eriksen & Eriksen (1974).",
+    },
+    tutorialBody: `<p>Three flanker types now: same direction, opposite direction, or neutral (==).</p>
+      <ul>
+        <li>Press <strong>←</strong> or <strong>→</strong> to match the center.</li>
+        <li>Neutral flankers don't pull either way — they're 'easy' trials.</li>
+      </ul>`,
+  },
+  4: {
+    name: "Rule Switch",
+    paradigm: "Flanker / Task Switching",
+    short: "Default: match the center. Cue 'OPPOSITE' → press the opposite direction.",
+    rule: `Match the center arrow &nbsp;·&nbsp; <strong>unless</strong> cue says <span style="color:#D17B6F">OPPOSITE</span>`,
+    duration: 120,
+    accent: "#4FA877",
+    science: {
+      description: "Adding a rule-switch (the response mapping flips every 8–12 trials) loads attention with task-set updating in addition to flanker suppression. Mistakes cluster around switches — that's task-switching cost in action.",
+      citation: "Rogers & Monsell (1995). Costs of a predictable switch between simple cognitive tasks.",
+    },
+    tutorialBody: `<p>Two rules now:</p>
+      <ul>
+        <li>Default: press the direction of the <strong>center arrow</strong>.</li>
+        <li>When the cue at top says <strong style="color:#D17B6F">OPPOSITE</strong>, press the <em>opposite</em> direction instead.</li>
+        <li>The rule changes randomly every 8–12 trials. Watch the cue.</li>
+      </ul>`,
+  },
+  5: {
+    name: "Shape Storm",
+    paradigm: "Flanker / Cross-modal",
+    short: "Triangles instead of arrows — pointing left or right.",
+    rule: `Press <span class="keys"><span class="key">←</span><span class="key">→</span></span> for the center triangle &nbsp;·&nbsp; flankers shift the noise floor`,
+    duration: 120,
+    accent: "#4FA877",
+    science: {
+      description: "Replacing arrows with shape variants breaks the automaticity of arrow reading and forces a slower, more attentive evaluation. Practice transfers to general selective-attention tasks.",
+      citation: "Eriksen & Eriksen (1974); shape-flanker variants.",
+    },
+    tutorialBody: `<p>Same flanker task — but with triangles instead of arrows.</p>
+      <ul>
+        <li>Triangles point either <strong>left</strong> or <strong>right</strong> based on which side has the point.</li>
+        <li>Press <strong>←</strong> or <strong>→</strong> to match the <strong>center triangle</strong>.</li>
+        <li>The four flanker triangles will try to mislead you. Ignore them.</li>
+      </ul>`,
+  },
+};
+
+function makeFlankerLevel(id) {
+  switch (id) {
+    case 1: return makeFlankerCore({ id: 1, isi: 1600, neutralProb: 0, shapes: false });
+    case 2: return makeFlankerCore({ id: 2, isi: 1000, neutralProb: 0, shapes: false });
+    case 3: return makeFlankerCore({ id: 3, isi: 1100, neutralProb: 0.33, shapes: false });
+    case 4: return makeFlankerCore({ id: 4, isi: 1200, neutralProb: 0.20, shapes: false, ruleSwitch: true });
+    case 5: return makeFlankerCore({ id: 5, isi: 1200, neutralProb: 0.20, shapes: true });
+  }
+}
+
+function makeFlankerCore(opts) {
+  let phase = 'blank';
+  let phaseEnd = 0;
+  let currentTrial = null;
+  let trialStart = 0;
+  let pressed = false;
+  const stats = { correct: 0, wrong: 0, missed: 0, rts: [], congruentRTs: [], incongruentRTs: [] };
+  let ruleOpposite = false;
+  let trialsSinceRuleChange = 0;
+  let nextRuleChange = 8 + Math.floor(Math.random() * 5);
+  let cueEl = null;
+
+  function newTrial() {
+    const centerDir = Math.random() < 0.5 ? 'L' : 'R';
+    let flankerType;
+    const r = Math.random();
+    if (r < opts.neutralProb) flankerType = 'neutral';
+    else if (r < opts.neutralProb + (1 - opts.neutralProb) * 0.5) flankerType = 'congruent';
+    else flankerType = 'incongruent';
+    return { centerDir, flankerType, congruent: flankerType === 'congruent' };
+  }
+  function maybeSwitchRule() {
+    if (!opts.ruleSwitch) return;
+    trialsSinceRuleChange++;
+    if (trialsSinceRuleChange >= nextRuleChange) {
+      ruleOpposite = !ruleOpposite;
+      trialsSinceRuleChange = 0;
+      nextRuleChange = 8 + Math.floor(Math.random() * 5);
+      updateCue();
+    }
+  }
+  function updateCue() {
+    if (!cueEl) return;
+    if (ruleOpposite) {
+      cueEl.textContent = 'OPPOSITE';
+      cueEl.classList.add('opposite');
+    } else {
+      cueEl.textContent = 'SAME (match center)';
+      cueEl.classList.remove('opposite');
+    }
+  }
+  function drawArrowOrShape(x, y, dir, size, color, isShape) {
+    ctx.fillStyle = color;
+    if (isShape) {
+      ctx.beginPath();
+      if (dir === 'R') {
+        ctx.moveTo(x + size * 0.5, y);
+        ctx.lineTo(x - size * 0.4, y - size * 0.45);
+        ctx.lineTo(x - size * 0.4, y + size * 0.45);
+      } else {
+        ctx.moveTo(x - size * 0.5, y);
+        ctx.lineTo(x + size * 0.4, y - size * 0.45);
+        ctx.lineTo(x + size * 0.4, y + size * 0.45);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.font = `600 ${Math.floor(size * 1.1)}px -apple-system, system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(dir === 'L' ? '◀' : '▶', x, y);
+    }
+  }
+  function drawNeutral(x, y, size, color) {
+    ctx.fillStyle = color;
+    ctx.font = `600 ${Math.floor(size * 0.9)}px -apple-system, system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('=', x, y);
+  }
+
+  return {
+    id: opts.id,
+    tapMode: "arrows",
+    init(env) {
+      env.hint('Press ← or → to match the CENTER. Ignore the flankers.');
+      phase = 'blank';
+      phaseEnd = performance.now() + 800;
+    },
+    installLevelExtras(stage, extras) {
+      if (opts.ruleSwitch) {
+        cueEl = document.createElement('div');
+        cueEl.className = 'flanker-cue';
+        stage.appendChild(cueEl);
+        extras.push(cueEl);
+        updateCue();
+      }
+    },
+    tick(now) {
+      if (phase === 'blank' && now >= phaseEnd) {
+        currentTrial = newTrial();
+        pressed = false;
+        trialStart = now;
+        phase = 'show';
+        phaseEnd = now + opts.isi;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        if (!pressed) {
+          stats.missed++;
+          feedback('bad', 'Too slow');
+        }
+        currentTrial = null;
+        phase = 'blank';
+        maybeSwitchRule();
+        phaseEnd = now + 350;
+      }
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'show' && currentTrial) {
+        const cx = w / 2, cy = h / 2;
+        const size = Math.min(64, Math.min(w, h) * 0.12);
+        const gap = size * 1.4;
+        const center = currentTrial.centerDir;
+        const flank = currentTrial.flankerType === 'congruent'
+          ? center
+          : (currentTrial.flankerType === 'incongruent' ? (center === 'L' ? 'R' : 'L') : null);
+        for (let i = -2; i <= 2; i++) {
+          const x = cx + i * gap;
+          if (i === 0) {
+            drawArrowOrShape(x, cy, center, size, '#2A2A2A', opts.shapes);
+          } else if (flank == null) {
+            drawNeutral(x, cy, size, '#8A8A85');
+          } else {
+            drawArrowOrShape(x, cy, flank, size * 0.92, '#8A8A85', opts.shapes);
+          }
+        }
+      }
+    },
+    handleKey(e) {
+      const k = e.key;
+      if (k !== 'ArrowLeft' && k !== 'ArrowRight') return;
+      if (e.preventDefault) e.preventDefault();
+      if (phase !== 'show' || !currentTrial || pressed) return;
+      const rt = performance.now() - trialStart;
+      pressed = true;
+      const expected = ruleOpposite
+        ? (currentTrial.centerDir === 'L' ? 'R' : 'L')
+        : currentTrial.centerDir;
+      const pressedDir = k === 'ArrowLeft' ? 'L' : 'R';
+      if (pressedDir === expected) {
+        stats.correct++;
+        stats.rts.push(rt);
+        if (currentTrial.flankerType === 'congruent') stats.congruentRTs.push(rt);
+        else if (currentTrial.flankerType === 'incongruent') stats.incongruentRTs.push(rt);
+        audio.good();
+        feedback('good', `${rt.toFixed(0)}ms`);
+      } else {
+        stats.wrong++;
+        audio.bad();
+        feedback('bad', ruleOpposite ? 'Rule was OPPOSITE' : 'Wrong direction');
+      }
+    },
+    finish() {
+      const total = stats.correct + stats.wrong + stats.missed;
+      const accuracy = total > 0 ? stats.correct / total : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s, x) => s + x, 0) / stats.rts.length : 1000;
+      const cong = stats.congruentRTs.length ? stats.congruentRTs.reduce((s, x) => s + x, 0) / stats.congruentRTs.length : null;
+      const inc = stats.incongruentRTs.length ? stats.incongruentRTs.reduce((s, x) => s + x, 0) / stats.incongruentRTs.length : null;
+      const flankerEffect = (cong != null && inc != null) ? (inc - cong) : null;
+      const score = meanRT * (1 - accuracy + 0.05) * 4 + stats.wrong * 30;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Correct', value: `${stats.correct}/${total}` },
+          { label: 'Mean RT', value: `${Math.round(meanRT)} ms` },
+          { label: 'Flanker effect', value: flankerEffect != null ? `${Math.round(flankerEffect)} ms` : '—' },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// COLOR CONFLICT (Stroop) — interference control (5 levels)
+// ==========================================================================
+
+GAME_META.stroop = {
+  1: {
+    name: "Easy Ink",
+    paradigm: "Stroop / Color-Word",
+    short: "Press the key for the INK color, not the word.",
+    rule: `Press the key for the <strong>INK color</strong> &nbsp;·&nbsp; <em>not</em> what the word says`,
+    duration: 90,
+    accent: "#B86FB1",
+    science: {
+      description: "The Stroop task measures interference control. Reading is automatic; naming a color is not. When word and ink disagree, you must actively suppress automatic reading and select the slower, intentional response.",
+      citation: "Stroop, J. R. (1935). Studies of interference in serial verbal reactions.",
+    },
+    tutorialBody: `<p>You'll see color words painted in different ink colors.</p>
+      <ul>
+        <li>Press the key for the <strong>ink color</strong> (the actual paint).</li>
+        <li>R = red, B = blue, G = green, Y = yellow.</li>
+        <li>This level is mostly congruent — easy mode. Get the rhythm.</li>
+      </ul>`,
+  },
+  2: {
+    name: "Half & Half",
+    paradigm: "Stroop / Conflict",
+    short: "Half of trials are incongruent. The interference is the point.",
+    rule: `Press the key for the <strong>INK color</strong> &nbsp;·&nbsp; conflict on every trial`,
+    duration: 90,
+    accent: "#B86FB1",
+    science: {
+      description: "Mixing congruent and incongruent trials prevents you from settling into a single strategy. The Stroop effect (incongruent RT − congruent RT) is your pure interference cost.",
+      citation: "Stroop (1935); MacLeod (1991) review of Stroop effect.",
+    },
+    tutorialBody: `<p>50/50 mix of congruent and incongruent words.</p>
+      <ul>
+        <li>Same rule: press the <strong>ink color</strong>, ignore the word.</li>
+        <li>R/B/G/Y for red/blue/green/yellow.</li>
+      </ul>`,
+  },
+  3: {
+    name: "Faster",
+    paradigm: "Stroop / Speed",
+    short: "Same rule, less time per trial.",
+    rule: `<strong>INK color</strong> only &nbsp;·&nbsp; faster pace`,
+    duration: 90,
+    accent: "#B86FB1",
+    science: {
+      description: "Compressing the time window forces a tighter inhibition cycle. If you slow down on incongruent trials, your accuracy holds; if you don't, error rate climbs. Practice trains the speed-accuracy frontier.",
+      citation: "Stroop (1935); Logan (1980) on stop-signal-style Stroop.",
+    },
+    tutorialBody: `<p>Same rule — pace is faster. ~1.3s to respond.</p>
+      <ul>
+        <li>Press the <strong>ink color</strong>: R/B/G/Y.</li>
+        <li>If you miss the window, the trial counts as wrong.</li>
+      </ul>`,
+  },
+  4: {
+    name: "Read or Match",
+    paradigm: "Stroop / Task Switching",
+    short: "Cue at top: 'INK' or 'WORD'. Match what the cue says.",
+    rule: `<strong>INK</strong> by default &nbsp;·&nbsp; cue says <span style="color:#D17B6F">WORD</span> → match what the word says`,
+    duration: 120,
+    accent: "#B86FB1",
+    science: {
+      description: "Switching between 'name the ink' and 'read the word' on cue is a clean test of cognitive flexibility. Both responses share the same keys, but the rule selects which feature wins. Switch costs are large here — you'll feel them.",
+      citation: "Allport, Styles & Hsieh (1994). Shifting intentional set: Exploring the dynamic control of tasks.",
+    },
+    tutorialBody: `<p>Two rules:</p>
+      <ul>
+        <li>Default: press the <strong>ink color</strong>.</li>
+        <li>When the cue at top says <strong style="color:#D17B6F">WORD</strong>, press the key for what the <em>word</em> says instead.</li>
+        <li>The rule changes randomly every 6–10 trials. Read the cue.</li>
+      </ul>`,
+  },
+  5: {
+    name: "Six Colors",
+    paradigm: "Stroop / Expanded",
+    short: "Six colors instead of four.",
+    rule: `<strong>INK color</strong> &nbsp;·&nbsp; 6 keys — R/B/G/Y/O/P`,
+    duration: 120,
+    accent: "#B86FB1",
+    science: {
+      description: "Adding more response options expands the search through your S-R mapping table on every trial. The cost is mostly response selection (motor decision) on top of the perceptual conflict — both targets of the same control system.",
+      citation: "Stroop (1935); 6-color Stroop variants in clinical assessment.",
+    },
+    tutorialBody: `<p>Same rule, but now six possible colors and keys.</p>
+      <ul>
+        <li>R = red, B = blue, G = green, Y = yellow, O = orange, P = purple.</li>
+        <li>Press the <strong>ink color</strong>, ignore the word.</li>
+      </ul>`,
+  },
+};
+
+function makeStroopLevel(id) {
+  switch (id) {
+    case 1: return makeStroopCore({ id: 1, displayMs: 1900, congruentProb: 0.7, sixColors: false });
+    case 2: return makeStroopCore({ id: 2, displayMs: 1700, congruentProb: 0.5, sixColors: false });
+    case 3: return makeStroopCore({ id: 3, displayMs: 1300, congruentProb: 0.5, sixColors: false });
+    case 4: return makeStroopCore({ id: 4, displayMs: 1700, congruentProb: 0.5, sixColors: false, ruleSwitch: true });
+    case 5: return makeStroopCore({ id: 5, displayMs: 1500, congruentProb: 0.5, sixColors: true });
+  }
+}
+
+function makeStroopCore(opts) {
+  const C4 = [
+    { name: 'RED', key: 'r', hex: '#D17B6F' },
+    { name: 'BLUE', key: 'b', hex: '#5B7CFA' },
+    { name: 'GREEN', key: 'g', hex: '#4FA877' },
+    { name: 'YELLOW', key: 'y', hex: '#C9A14A' },
+  ];
+  const C6 = [...C4,
+    { name: 'ORANGE', key: 'o', hex: '#E08E45' },
+    { name: 'PURPLE', key: 'p', hex: '#9C7FB8' },
+  ];
+  const COLORS = opts.sixColors ? C6 : C4;
+  const VALID_KEYS = COLORS.map(c => c.key);
+
+  let phase = 'blank';
+  let phaseEnd = 0;
+  let trial = null;
+  let trialStart = 0;
+  const stats = { correct: 0, wrong: 0, missed: 0, rts: [] };
+  let matchWord = false;
+  let trialsSinceRuleChange = 0;
+  let nextRuleChange = 6 + Math.floor(Math.random() * 5);
+  let cueEl = null;
+
+  function newTrial() {
+    const word = COLORS[Math.floor(Math.random() * COLORS.length)];
+    let ink;
+    if (Math.random() < opts.congruentProb) {
+      ink = word;
+    } else {
+      do { ink = COLORS[Math.floor(Math.random() * COLORS.length)]; } while (ink === word);
+    }
+    return { word, ink };
+  }
+  function maybeSwitchRule() {
+    if (!opts.ruleSwitch) return;
+    trialsSinceRuleChange++;
+    if (trialsSinceRuleChange >= nextRuleChange) {
+      matchWord = !matchWord;
+      trialsSinceRuleChange = 0;
+      nextRuleChange = 6 + Math.floor(Math.random() * 5);
+      updateCue();
+    }
+  }
+  function updateCue() {
+    if (!cueEl) return;
+    cueEl.textContent = matchWord ? 'WORD' : 'INK';
+    cueEl.classList.toggle('match-word', matchWord);
+    cueEl.classList.toggle('match-ink', !matchWord);
+  }
+
+  return {
+    id: opts.id,
+    tapMode: "colors",
+    init(env) {
+      env.hint('Press the key for the INK color (or WORD when cued).');
+      phase = 'blank';
+      phaseEnd = performance.now() + 600;
+    },
+    installLevelExtras(stage, extras) {
+      const key = document.createElement('div');
+      key.className = 'color-key';
+      key.innerHTML = COLORS.map(c =>
+        `<div class="ck"><span class="keycap">${c.key.toUpperCase()}</span><span style="color:${c.hex}">${c.name}</span></div>`
+      ).join('');
+      stage.appendChild(key);
+      extras.push(key);
+      if (opts.ruleSwitch) {
+        cueEl = document.createElement('div');
+        cueEl.className = 'stroop-cue match-ink';
+        stage.appendChild(cueEl);
+        extras.push(cueEl);
+        updateCue();
+      }
+    },
+    tick(now) {
+      if (phase === 'blank' && now >= phaseEnd) {
+        trial = newTrial();
+        trialStart = now;
+        phase = 'show';
+        phaseEnd = now + opts.displayMs;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        stats.missed++;
+        feedback('bad', 'Too slow');
+        trial = null;
+        phase = 'blank';
+        maybeSwitchRule();
+        phaseEnd = now + 250;
+      }
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'show' && trial) {
+        ctx.fillStyle = trial.ink.hex;
+        const fontSize = Math.min(opts.sixColors ? 64 : 84, w * 0.18);
+        ctx.font = `600 ${fontSize}px -apple-system, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(trial.word.name, w/2, h/2);
+      }
+    },
+    handleKey(e) {
+      const k = (e.key || '').toLowerCase();
+      if (!VALID_KEYS.includes(k)) return;
+      if (phase !== 'show' || !trial) return;
+      const rt = performance.now() - trialStart;
+      const expectedKey = matchWord ? trial.word.key : trial.ink.key;
+      if (k === expectedKey) {
+        stats.correct++;
+        stats.rts.push(rt);
+        audio.good();
+        feedback('good', `${rt.toFixed(0)}ms`);
+      } else {
+        stats.wrong++;
+        audio.bad();
+        feedback('bad', matchWord ? 'Should match the WORD' : 'Should match the INK');
+      }
+      trial = null;
+      phase = 'blank';
+      maybeSwitchRule();
+      phaseEnd = performance.now() + 250;
+    },
+    finish() {
+      const total = stats.correct + stats.wrong + stats.missed;
+      const accuracy = total > 0 ? stats.correct / total : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s, x) => s + x, 0) / stats.rts.length : 1500;
+      const score = meanRT * (1 - accuracy + 0.05) * 4 + stats.wrong * 30;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Correct', value: `${stats.correct}/${total}` },
+          { label: 'Wrong', value: `${stats.wrong}` },
+          { label: 'Mean RT', value: `${Math.round(meanRT)} ms` },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// N-BACK — working memory (5 levels)
+// ==========================================================================
+
+GAME_META.nback = {
+  1: {
+    name: "1-Back Easy",
+    paradigm: "N-Back / Working Memory",
+    short: "When the current symbol matches the LAST one, press SPACE.",
+    rule: `Press <span class="keys"><span class="key">SPACE</span></span> when current = <strong>previous</strong>`,
+    duration: 90,
+    accent: "#3FA6BD",
+    science: {
+      description: "The 1-back task tests working memory's most basic span — holding one item in mind while comparing to the next. Slow pace at this level establishes the rhythm; subsequent levels add load by increasing N or speeding up.",
+      citation: "Kirchner (1958). Age differences in short-term retention of rapidly changing information.",
+    },
+    tutorialBody: `<p>Symbols flash one at a time.</p>
+      <ul>
+        <li>If the current symbol is the <strong>same as the one just before it</strong>, press <strong>SPACE</strong>.</li>
+        <li>Otherwise, do nothing.</li>
+        <li>Don't press on the very first symbol — there's nothing to compare to.</li>
+      </ul>`,
+  },
+  2: {
+    name: "1-Back Faster",
+    paradigm: "N-Back / Speed",
+    short: "Same rule — symbols arrive faster, with lures.",
+    rule: `Press <span class="keys"><span class="key">SPACE</span></span> when current = previous &nbsp;·&nbsp; faster pace`,
+    duration: 90,
+    accent: "#3FA6BD",
+    science: {
+      description: "Halving the SOA stresses the maintenance/comparison cycle. Lures (a symbol that matches 2 back but not 1) test for false alarms — a marker of working-memory leakage.",
+      citation: "Kane & Engle (2003). Working memory capacity and the control of attention.",
+    },
+    tutorialBody: `<p>Same as Level 1, faster.</p>
+      <ul>
+        <li>SPACE when current = previous.</li>
+        <li>Some symbols match 2 back, not 1 back — those are traps. Don't press for them.</li>
+      </ul>`,
+  },
+  3: {
+    name: "2-Back",
+    paradigm: "N-Back / Working Memory",
+    short: "Press SPACE when the current matches the symbol from TWO steps ago.",
+    rule: `Press <span class="keys"><span class="key">SPACE</span></span> when current = <strong>2 steps back</strong>`,
+    duration: 120,
+    accent: "#3FA6BD",
+    science: {
+      description: "2-back is the canonical working-memory load test — the most-cited n-back variant in cognitive neuroscience. Maintaining 'what was the symbol two ago' while a new one arrives engages active maintenance and updating.",
+      citation: "Owen et al. (2005). N-back working memory paradigm: A meta-analysis of normative functional neuroimaging studies.",
+    },
+    tutorialBody: `<p>Now compare to TWO steps ago, not just the previous.</p>
+      <ul>
+        <li>Press <strong>SPACE</strong> when the current symbol = the one shown 2 trials ago.</li>
+        <li>The first two symbols are 'warmup' — no targets possible.</li>
+        <li>Tip: rehearse the last 2 mentally as a rolling window.</li>
+      </ul>`,
+  },
+  4: {
+    name: "2-Back Faster",
+    paradigm: "N-Back / Speed + Lures",
+    short: "2-back, faster pace, with lures (matches 1-back or 3-back).",
+    rule: `<span class="keys"><span class="key">SPACE</span></span> when current = 2 back &nbsp;·&nbsp; lures will try to fool you`,
+    duration: 120,
+    accent: "#3FA6BD",
+    science: {
+      description: "Lures (matches at 1-back or 3-back) generate familiarity without being the target. False alarms on lures are the cleanest n-back error metric — they show whether you're tracking position, not just familiarity.",
+      citation: "Kane et al. (2007). For whom the mind wanders, and when.",
+    },
+    tutorialBody: `<p>2-back, faster, with traps.</p>
+      <ul>
+        <li>Press <strong>SPACE</strong> when current = symbol from 2 trials ago.</li>
+        <li>Sometimes a symbol matches the previous one or 3 back — don't press for those. Only 2 back counts.</li>
+      </ul>`,
+  },
+  5: {
+    name: "3-Back",
+    paradigm: "N-Back / Heavy Load",
+    short: "Three steps back. The hard one.",
+    rule: `<span class="keys"><span class="key">SPACE</span></span> when current = <strong>3 steps back</strong>`,
+    duration: 150,
+    accent: "#3FA6BD",
+    science: {
+      description: "3-back stresses working memory near its capacity limit for most adults (~3-4 items in active maintenance). Don't expect high accuracy on day one — the unlock progression here is meant to be slow.",
+      citation: "Jaeggi et al. (2008). Improving fluid intelligence with training on working memory.",
+    },
+    tutorialBody: `<p>3-back: maintain a rolling window of the last 3.</p>
+      <ul>
+        <li>Press <strong>SPACE</strong> when current = symbol from 3 trials ago.</li>
+        <li>This is the hardest n-back. Aim for 75% accuracy — you may need several attempts.</li>
+        <li>Tip: silently chant the last 3 symbols as a rolling 3-item phrase.</li>
+      </ul>`,
+  },
+};
+
+function makeNbackLevel(id) {
+  switch (id) {
+    case 1: return makeNbackCore({ id: 1, n: 1, soaMs: 2000, lureProb: 0 });
+    case 2: return makeNbackCore({ id: 2, n: 1, soaMs: 1400, lureProb: 0.15 });
+    case 3: return makeNbackCore({ id: 3, n: 2, soaMs: 2000, lureProb: 0 });
+    case 4: return makeNbackCore({ id: 4, n: 2, soaMs: 1400, lureProb: 0.20 });
+    case 5: return makeNbackCore({ id: 5, n: 3, soaMs: 1600, lureProb: 0.15 });
+  }
+}
+
+function makeNbackCore(opts) {
+  const SYMBOLS = ['◆', '▲', '●', '■', '★', '✚', '◐', '⬢'];
+  const N = opts.n;
+  let history = [];
+  const stimDisplayMs = Math.floor(opts.soaMs * 0.6);
+  let phase = 'blank';
+  let phaseEnd = 0;
+  let currentSymbol = null;
+  let trialStart = 0;
+  let pressed = false;
+  let trialIdx = 0;
+  const stats = { hits: 0, misses: 0, correctRejections: 0, falseAlarms: 0, rts: [] };
+  let cueEl = null;
+
+  function pickNext() {
+    const r = Math.random();
+    if (history.length >= N && r < 0.30) {
+      return { sym: history[history.length - N], isTarget: true, isLure: false };
+    }
+    if (opts.lureProb > 0 && r < 0.30 + opts.lureProb && history.length >= 1) {
+      const lurePositions = [];
+      if (N - 1 >= 1 && history.length >= N - 1) lurePositions.push(N - 1);
+      if (history.length >= N + 1) lurePositions.push(N + 1);
+      if (lurePositions.length) {
+        const offset = lurePositions[Math.floor(Math.random() * lurePositions.length)];
+        const candidate = history[history.length - offset];
+        const realTarget = history.length >= N ? history[history.length - N] : null;
+        if (candidate !== realTarget) {
+          return { sym: candidate, isTarget: false, isLure: true };
+        }
+      }
+    }
+    let sym;
+    let attempts = 0;
+    do {
+      sym = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+      attempts++;
+    } while (history.length >= N && history[history.length - N] === sym && attempts < 8);
+    return { sym, isTarget: false, isLure: false };
+  }
+
+  return {
+    id: opts.id,
+    tapMode: "space",
+    init(env) {
+      env.hint(`Press SPACE only when current = ${N} step${N === 1 ? '' : 's'} back.`);
+      phase = 'blank';
+      phaseEnd = performance.now() + 800;
+    },
+    installLevelExtras(stage, extras) {
+      cueEl = document.createElement('div');
+      cueEl.className = 'nback-cue';
+      cueEl.innerHTML = `<strong>${N}-back</strong> &nbsp;·&nbsp; tap when current = ${N} ago`;
+      stage.appendChild(cueEl);
+      extras.push(cueEl);
+    },
+    tick(now) {
+      if (phase === 'blank' && now >= phaseEnd) {
+        currentSymbol = pickNext();
+        trialStart = now;
+        pressed = false;
+        trialIdx++;
+        phase = 'show';
+        phaseEnd = now + stimDisplayMs;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        if (currentSymbol.isTarget) {
+          if (!pressed) {
+            stats.misses++;
+            feedback('bad', `Missed — that was ${N} back`);
+            audio.bad();
+          }
+        } else {
+          if (!pressed) stats.correctRejections++;
+        }
+        history.push(currentSymbol.sym);
+        if (history.length > 8) history = history.slice(-8);
+        currentSymbol = null;
+        phase = 'blank';
+        phaseEnd = now + (opts.soaMs - stimDisplayMs);
+      }
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'show' && currentSymbol) {
+        ctx.fillStyle = LEVEL_META[opts.id].accent;
+        ctx.font = `600 ${Math.min(180, Math.min(w, h) * 0.32)}px -apple-system, system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(currentSymbol.sym, w/2, h/2);
+      }
+      ctx.font = '500 13px -apple-system, system-ui, sans-serif';
+      ctx.fillStyle = '#8A8A85';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`Trial ${trialIdx} · hits ${stats.hits} · misses ${stats.misses} · false ${stats.falseAlarms}`, 16, 12);
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      if (e.preventDefault) e.preventDefault();
+      if (phase !== 'show' || !currentSymbol || pressed) return;
+      pressed = true;
+      const rt = performance.now() - trialStart;
+      if (currentSymbol.isTarget) {
+        stats.hits++;
+        stats.rts.push(rt);
+        audio.good();
+        feedback('good', 'Match!');
+      } else {
+        stats.falseAlarms++;
+        audio.bad();
+        feedback('bad', currentSymbol.isLure ? 'Lure trap — that wasn\'t N back' : 'No match');
+      }
+    },
+    finish() {
+      const targets = stats.hits + stats.misses;
+      const nonTargets = stats.correctRejections + stats.falseAlarms;
+      const hitRate = targets ? stats.hits / targets : 0;
+      const faRate = nonTargets ? stats.falseAlarms / nonTargets : 0;
+      const dPrime = hitRate - faRate;
+      const accuracy = (hitRate + (1 - faRate)) / 2;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s, x) => s + x, 0) / stats.rts.length : 800;
+      const score = meanRT * (1 - accuracy + 0.05) * 3 + stats.falseAlarms * 25 + stats.misses * 20;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Hits', value: `${stats.hits}/${targets}` },
+          { label: 'False alarms', value: `${stats.falseAlarms}/${nonTargets}` },
+          { label: "Sensitivity (d′)", value: dPrime.toFixed(2) },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
 // INIT
 // ==========================================================================
 
-renderMenu();
+renderHome();
 window.addEventListener('load', () => {
   // ensure canvas sized when stage shown later
 });
