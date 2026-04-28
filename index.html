@@ -1,0 +1,2977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>One Thing — A Focus Game</title>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --ink: #2A2A2A;
+    --muted: #8A8A85;
+    --line: #E5E4DE;
+    --accent: #5B7CFA;
+    --good: #4FA877;
+    --bad: #D17B6F;
+    --panel: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+  button {
+    font: inherit; color: inherit; background: none; border: none; cursor: pointer;
+  }
+  .app {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    min-height: 100%;
+  }
+
+  /* MENU */
+  .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; margin: 0; }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
+  .meta { display: flex; gap: 24px; font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+  .meta .num { color: var(--ink); font-weight: 600; }
+  .meta button.audio-toggle { color: var(--muted); border-bottom: 1px dotted var(--muted); padding: 0; }
+  .meta button.audio-toggle:hover { color: var(--ink); }
+
+  .levels { display: grid; gap: 12px; }
+  .level-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 16px;
+    align-items: center;
+    transition: border-color .15s, transform .1s;
+  }
+  .level-card:not(.locked):hover { border-color: var(--ink); }
+  .level-card.locked { opacity: 0.45; }
+  .level-num {
+    font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+    width: 24px;
+  }
+  .level-info .name { font-weight: 600; font-size: 17px; }
+  .level-info .paradigm { color: var(--muted); font-size: 13px; }
+  .level-stats { color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; min-width: 80px; }
+  .level-stats .best { color: var(--ink); font-weight: 600; font-size: 14px; }
+  .level-actions { display: flex; gap: 4px; }
+  .level-actions .play {
+    padding: 8px 16px;
+    background: var(--ink); color: var(--bg);
+    border-radius: 6px; font-size: 14px; font-weight: 500;
+    transition: opacity .15s;
+  }
+  .level-actions .play:hover { opacity: 0.85; }
+  .level-actions .info {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    color: var(--muted);
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .level-actions .info:hover { background: var(--line); color: var(--ink); }
+  .level-card.locked .play { background: var(--muted); cursor: not-allowed; }
+
+  .footer-note { color: var(--muted); font-size: 12px; margin-top: 32px; text-align: center; }
+  .footer-note a { color: var(--muted); }
+
+  /* GAME */
+  .game-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    z-index: 10;
+  }
+  .game-screen.active { display: flex; }
+  .game-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-bottom: 1px solid var(--line);
+    font-size: 13px; color: var(--muted);
+  }
+  .game-top .left { display: flex; gap: 16px; align-items: center; }
+  .game-top .quit {
+    color: var(--muted); padding: 4px 8px; border-radius: 4px;
+  }
+  .game-top .quit:hover { background: var(--line); color: var(--ink); }
+  .game-top .timer { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+  .game-top .level-name { font-weight: 600; color: var(--ink); }
+
+  .game-stage {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  #canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  .stage-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .stim-text {
+    font-size: 96px; font-weight: 600; letter-spacing: -2px;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+  @media (max-width: 600px) {
+    .stim-text { font-size: 72px; }
+  }
+
+  /* TUTORIAL / RESULTS / SCIENCE overlays */
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(250, 250, 247, 0.97);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 20;
+    padding: 24px;
+  }
+  .modal-bg.active { display: flex; }
+  .modal {
+    max-width: 520px;
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 32px;
+  }
+  .modal h2 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
+  .modal .modal-sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+  .modal p { margin: 0 0 14px; }
+  .modal ul { margin: 0 0 14px; padding-left: 20px; }
+  .modal ul li { margin-bottom: 6px; }
+  .modal .modal-citation { font-style: italic; color: var(--muted); font-size: 13px; border-left: 2px solid var(--line); padding-left: 12px; margin-top: 16px; }
+  .modal .honest {
+    font-size: 13px;
+    color: var(--muted);
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
+  .modal button.primary {
+    background: var(--ink); color: var(--bg);
+    padding: 10px 20px; border-radius: 6px; font-weight: 500;
+  }
+  .modal button.secondary {
+    color: var(--muted); padding: 10px 16px;
+  }
+  .modal button.secondary:hover { color: var(--ink); }
+
+  /* RESULT METRICS */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+  .metric { background: var(--bg); border-radius: 8px; padding: 14px; }
+  .metric .lbl { font-size: 12px; color: var(--muted); }
+  .metric .val { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .verdict { font-size: 14px; padding: 10px 12px; border-radius: 6px; }
+  .verdict.passed { background: #EFF7F2; color: var(--good); }
+  .verdict.failed { background: #FBF0EE; color: var(--bad); }
+
+  /* GAME-OVER STAGE feedback (subtle border pulse) */
+  .stage-flash-good::after,
+  .stage-flash-bad::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    border: 2px solid transparent;
+    animation: flash .4s ease-out;
+  }
+  .stage-flash-good::after { border-color: var(--good); }
+  .stage-flash-bad::after { border-color: var(--bad); }
+  @keyframes flash {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+
+  .countdown {
+    font-size: 120px; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .instructions-hint {
+    position: absolute; bottom: 24px; left: 0; right: 0;
+    text-align: center; color: var(--muted); font-size: 13px;
+    pointer-events: none;
+  }
+
+  /* PERSISTENT RULE BANNER (always visible during play) */
+  .rule-bar {
+    padding: 14px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .rule-bar strong { color: var(--accent); }
+  .rule-bar .keys {
+    display: inline-flex; gap: 6px; margin-left: 12px; vertical-align: middle;
+  }
+  .rule-bar .key {
+    display: inline-block; padding: 2px 8px;
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: 4px; font-size: 12px; font-weight: 600;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    color: var(--ink);
+    min-width: 20px; text-align: center;
+  }
+
+  /* PRACTICE MODE BADGE */
+  .practice-badge {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: white;
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  /* PRACTICE FEEDBACK BUBBLE — explicit "that was a hit!" annotations */
+  .practice-bubble {
+    position: absolute;
+    background: var(--ink); color: var(--bg);
+    padding: 8px 14px; border-radius: 6px;
+    font-size: 13px; font-weight: 500;
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0;
+    animation: bubblePop 1.6s ease-out forwards;
+  }
+  .practice-bubble.good { background: var(--good); }
+  .practice-bubble.bad { background: var(--bad); }
+  @keyframes bubblePop {
+    0% { opacity: 0; transform: translate(-50%, 10px); }
+    15% { opacity: 1; transform: translate(-50%, -8px); }
+    80% { opacity: 1; transform: translate(-50%, -8px); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+  }
+
+  /* "Ready to start session" prompt at end of practice */
+  .ready-prompt {
+    position: absolute; inset: 0;
+    background: rgba(250, 250, 247, 0.92);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px;
+    z-index: 6;
+  }
+  .ready-prompt h3 { margin: 0; font-size: 22px; font-weight: 600; }
+  .ready-prompt p { color: var(--muted); margin: 0; max-width: 360px; text-align: center; }
+  .ready-prompt button {
+    background: var(--ink); color: var(--bg);
+    padding: 12px 28px; border-radius: 8px;
+    font-weight: 600; font-size: 15px;
+  }
+  .ready-prompt .keep-practicing {
+    background: none; color: var(--muted); padding: 8px 16px;
+    font-weight: 400; font-size: 13px;
+    border-bottom: 1px dotted var(--muted);
+    border-radius: 0;
+  }
+
+  /* STROOP COLOR KEY (always visible in Level 3) */
+  .color-key {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px; font-weight: 600;
+    z-index: 3;
+  }
+  .color-key .ck { display: flex; align-items: center; gap: 6px; }
+  .color-key .ck .keycap {
+    display: inline-block; padding: 2px 6px;
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: 3px; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; color: var(--ink);
+  }
+
+  /* DOT STATE LABEL (Level 1) */
+  .state-label {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 80px;
+    font-size: 13px; font-weight: 600; letter-spacing: 1px;
+    color: var(--muted); text-transform: uppercase;
+    pointer-events: none;
+  }
+  .state-label.active { color: var(--accent); }
+
+  /* MOBILE TAP CONTROLS — shown only on touch devices for keyboard-equivalent input */
+  .tap-zone {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 130px;
+    display: none;
+    z-index: 4;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; -webkit-user-select: none;
+  }
+  .tap-zone .tap-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-size: 18px; font-weight: 600;
+    margin: 8px;
+    border-radius: 14px;
+    min-height: 80px;
+    transition: background .08s, transform .08s;
+  }
+  .tap-zone .tap-btn:active {
+    background: var(--accent); color: white;
+    transform: scale(0.97);
+  }
+  .tap-zone.tap-single { justify-content: center; padding: 0 16px; }
+  .tap-zone.tap-single .tap-btn { max-width: 360px; }
+  .tap-zone.tap-double, .tap-zone.tap-quad { display: none; }
+
+  /* Show tap zones on coarse pointers (touch) */
+  @media (any-pointer: coarse) {
+    .tap-zone { display: flex; }
+    .tap-zone.tap-single { display: flex; }
+    .instructions-hint { bottom: 145px; }
+    .state-label { bottom: 200px; }
+    .color-key { bottom: 145px; display: none; } /* On touch, show tap-quad instead */
+  }
+
+  /* Two-button row (L7 Flanker LEFT/RIGHT) */
+  .tap-zone.tap-double { display: none; gap: 0; }
+  @media (any-pointer: coarse) {
+    .tap-zone.tap-double { display: flex; }
+  }
+
+  /* Quad row (L3 Stroop R/B/G/Y) */
+  .tap-zone.tap-quad { display: none; gap: 0; padding: 0 4px; }
+  @media (any-pointer: coarse) {
+    .tap-zone.tap-quad { display: flex; }
+    .tap-zone.tap-quad .tap-btn {
+      margin: 8px 4px;
+      font-size: 14px;
+      min-width: 0;
+    }
+  }
+
+  /* Mobile responsive layout — narrow screens */
+  @media (max-width: 600px) {
+    .app { padding: 20px 16px 48px; }
+    h1 { font-size: 22px; }
+    .subtitle { font-size: 13px; margin-bottom: 20px; }
+    .meta { gap: 12px; flex-wrap: wrap; font-size: 12px; }
+    .level-card {
+      padding: 14px 16px;
+      gap: 10px;
+      grid-template-columns: auto 1fr auto;
+    }
+    .level-card .level-stats { display: none; }
+    .level-info .name { font-size: 15px; }
+    .level-info .paradigm { font-size: 11px; }
+    .level-actions .play { padding: 6px 12px; font-size: 13px; }
+    .level-actions .info { width: 28px; height: 28px; font-size: 13px; }
+
+    .game-top { padding: 12px 16px; font-size: 12px; }
+    .rule-bar { padding: 10px 14px; font-size: 13px; }
+    .rule-bar .keys .key { font-size: 11px; padding: 1px 6px; }
+    .stim-text { font-size: 56px; }
+
+    .modal { padding: 22px 18px; max-width: 96vw; }
+    .modal h2 { font-size: 19px; }
+    .modal ul { padding-left: 18px; }
+
+    .practice-badge { font-size: 11px; padding: 5px 11px; top: 12px; }
+    .ready-prompt h3 { font-size: 18px; }
+    .ready-prompt p { font-size: 13px; padding: 0 16px; }
+    .ready-prompt button { padding: 10px 20px; font-size: 14px; }
+  }
+
+  /* Prevent iOS pinch-zoom interfering with the game */
+  body { touch-action: manipulation; }
+  canvas { touch-action: none; } /* Stop pull-to-refresh on canvas */
+</style>
+</head>
+<body>
+
+<!-- MENU -->
+<div class="app" id="menu">
+  <div class="header">
+    <h1>One Thing</h1>
+  </div>
+  <p class="subtitle">A focus game grounded in attention-science research. Practice single-tasking. Twelve levels, twelve paradigms.</p>
+
+  <div class="meta">
+    <div>Streak: <span class="num" id="streak">0</span> days</div>
+    <div>Sessions: <span class="num" id="totalSessions">0</span></div>
+    <div>Unlocked: <span class="num" id="unlockedCount">1</span>/12</div>
+    <button class="audio-toggle" id="audioToggle">Audio: off</button>
+  </div>
+
+  <div class="levels" id="levels"></div>
+
+  <p class="footer-note">All progress is stored locally on this device. No accounts, no analytics.</p>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="game-screen" id="gameScreen">
+  <div class="game-top">
+    <div class="left">
+      <button class="quit" id="quitBtn">← Quit</button>
+      <span class="level-name" id="gameLevelName">—</span>
+    </div>
+    <div class="timer" id="timer">0:00</div>
+  </div>
+  <div class="rule-bar" id="ruleBar"></div>
+  <div class="game-stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="stage-overlay" id="overlay"></div>
+    <div class="instructions-hint" id="instructionsHint"></div>
+    <div class="tap-zone" id="tapZone"></div>
+  </div>
+</div>
+
+<!-- TUTORIAL MODAL -->
+<div class="modal-bg" id="tutorialModal">
+  <div class="modal">
+    <h2 id="tutTitle">Level Title</h2>
+    <p class="modal-sub" id="tutParadigm">Paradigm</p>
+    <div id="tutBody"></div>
+    <div class="actions">
+      <button class="secondary" id="tutCancel">Cancel</button>
+      <button class="primary" id="tutStart">Begin →</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCIENCE MODAL -->
+<div class="modal-bg" id="scienceModal">
+  <div class="modal">
+    <h2 id="sciTitle">Why this level</h2>
+    <p class="modal-sub" id="sciParadigm">Paradigm</p>
+    <p id="sciDescription"></p>
+    <div class="modal-citation" id="sciCitation"></div>
+    <div class="honest" id="sciHonest"></div>
+    <div class="actions">
+      <button class="primary" id="sciClose">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS MODAL -->
+<div class="modal-bg" id="resultsModal">
+  <div class="modal">
+    <h2 id="resTitle">Session complete</h2>
+    <p class="modal-sub" id="resSub"></p>
+    <div class="metrics" id="resMetrics"></div>
+    <div class="verdict" id="resVerdict"></div>
+    <div class="actions">
+      <button class="secondary" id="resBack">← Menu</button>
+      <button class="primary" id="resAgain">Play again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================================================
+// STORAGE & STATE
+// ==========================================================================
+
+const STORAGE_KEY = 'oneThing.v1';
+
+const DEFAULT_STATE = {
+  unlockedLevel: 1,
+  bestScores: {},        // levelId -> score (lower is better)
+  sessions: [],          // last 30 { levelId, score, accuracy, ts }
+  streak: 0,             // consecutive-day streak
+  lastPlayedDay: null,   // YYYY-MM-DD
+  audioEnabled: false,
+};
+
+let STATE = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_STATE };
+    return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+  } catch (e) {
+    return { ...DEFAULT_STATE };
+  }
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE)); } catch (e) {}
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function dayDiff(a, b) {
+  const A = new Date(a), B = new Date(b);
+  return Math.round((B - A) / (1000*60*60*24));
+}
+function recordSessionCompletion(levelId, score, accuracy) {
+  const ts = Date.now();
+  STATE.sessions.push({ levelId, score, accuracy, ts });
+  if (STATE.sessions.length > 30) STATE.sessions = STATE.sessions.slice(-30);
+  if (STATE.bestScores[levelId] == null || score < STATE.bestScores[levelId]) {
+    STATE.bestScores[levelId] = score;
+  }
+  // Streak
+  const today = todayStr();
+  if (STATE.lastPlayedDay !== today) {
+    if (STATE.lastPlayedDay && dayDiff(STATE.lastPlayedDay, today) === 1) {
+      STATE.streak += 1;
+    } else if (!STATE.lastPlayedDay) {
+      STATE.streak = 1;
+    } else {
+      STATE.streak = 1; // reset
+    }
+    STATE.lastPlayedDay = today;
+  }
+  // Unlock next level if accuracy threshold met
+  if (accuracy >= 0.75 && levelId === STATE.unlockedLevel && STATE.unlockedLevel < TOTAL_LEVELS) {
+    STATE.unlockedLevel = levelId + 1;
+  }
+  saveState();
+}
+
+// ==========================================================================
+// AUDIO
+// ==========================================================================
+
+const audio = {
+  ctx: null,
+  enabled: () => STATE.audioEnabled,
+  ensure() {
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (e) {}
+    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  beep(freq, duration = 120, gain = 0.06, type = 'sine') {
+    if (!STATE.audioEnabled || !this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.value = gain;
+    o.connect(g); g.connect(this.ctx.destination);
+    const t = this.ctx.currentTime;
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duration / 1000);
+    o.start(t);
+    o.stop(t + duration / 1000 + 0.05);
+  },
+  // Used unconditionally for L5 (audio is core to the level), bypassing toggle
+  toneNow(freq, duration = 200, gain = 0.08) {
+    this.ensure();
+    if (!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.value = gain;
+    o.connect(g); g.connect(this.ctx.destination);
+    const t = this.ctx.currentTime;
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duration / 1000);
+    o.start(t);
+    o.stop(t + duration / 1000 + 0.05);
+  },
+  good() { this.beep(660, 90, 0.05); },
+  bad()  { this.beep(180, 140, 0.05); },
+};
+
+// ==========================================================================
+// LEVEL DEFINITIONS (metadata)
+// ==========================================================================
+
+const LEVEL_META = {
+  1: {
+    name: "Hold the Dot",
+    paradigm: "Sustained Attention",
+    short: "Watch one dot. Press SPACE every time it dims.",
+    rule: `When the dot <strong>dims</strong>, press <span class="keys"><span class="key">SPACE</span></span> &nbsp;·&nbsp; otherwise, do nothing`,
+    duration: 120,
+    accent: "#5B7CFA",
+    science: {
+      description: "This level is the simplest form of vigilance: one stimulus, one response, infrequent target events. The Continuous Performance Test (CPT) family — used clinically to assess attention since the 1950s — works exactly like this. The hard part is not noticing the dim; it's keeping attention engaged through the long, boring stretches between dims, when nothing is happening.",
+      citation: "Rosvold, Mirsky, Sarason, Bransome & Beck (1956). A continuous performance test of brain damage. Journal of Consulting Psychology.",
+    },
+  },
+  2: {
+    name: "Skip the Three",
+    paradigm: "SART (Go / No-Go)",
+    short: "Press SPACE for every digit — except 3. Don't press for 3.",
+    rule: `Press <span class="keys"><span class="key">SPACE</span></span> for every digit &nbsp;·&nbsp; <strong>do NOT press for 3</strong>`,
+    duration: 150,
+    accent: "#7DA86A",
+    science: {
+      description: "The Sustained Attention to Response Task forces you to build up an automatic 'press' response, then suppress it on rare no-go trials. It's the canonical test of sustained attention combined with response inhibition. Errors on the '3' are how cognitive psychologists measure mind-wandering objectively — when your mind drifts, your hand keeps responding automatically.",
+      citation: "Robertson, Manly, Andrade, Baddeley & Yiend (1997). 'Oops!': performance correlates of everyday attentional failures. Neuropsychologia.",
+    },
+  },
+  3: {
+    name: "The Color Trap",
+    paradigm: "Stroop Interference",
+    short: "Press the key matching the INK color, not the word.",
+    rule: `Press the key for the <strong>INK color</strong> &nbsp;·&nbsp; <em>not</em> what the word says`,
+    duration: 180,
+    accent: "#C18A6A",
+    science: {
+      description: "The Stroop task is the most-cited cognitive control task in psychology. Reading is automatic; naming a color is not. When the word and the ink disagree, you have to actively suppress automatic word-reading and select the slower, intentional response. That's executive control in its purest form.",
+      citation: "Stroop, J. R. (1935). Studies of interference in serial verbal reactions. Journal of Experimental Psychology.",
+    },
+  },
+  4: {
+    name: "Track the Target",
+    paradigm: "Selective Attention",
+    short: "Keep your cursor on the target. Press SPACE when it pulses. Ignore distractors.",
+    rule: `Keep cursor on the <strong>target</strong> &nbsp;·&nbsp; press <span class="keys"><span class="key">SPACE</span></span> when it <strong>pulses</strong> &nbsp;·&nbsp; ignore gray distractors`,
+    duration: 180,
+    accent: "#6AA8B5",
+    science: {
+      description: "Selective attention is the ability to lock onto one stream of information while filtering out everything else. The harder cognitive psychology pushes this — more distractors, faster movement, more salient flashes — the more your attentional 'spotlight' has to actively suppress competing signals to stay on target.",
+      citation: "Pylyshyn & Storm (1988). Tracking multiple independent targets: Evidence for a parallel tracking mechanism. Spatial Vision.",
+    },
+  },
+  5: {
+    name: "Two Things at Once",
+    paradigm: "Dual-Task / NeuroRacer",
+    short: "Track the moving target AND press SPACE on high-pitched beeps. Ignore low beeps.",
+    rule: `Track the <strong>target</strong> with cursor &nbsp;·&nbsp; press <span class="keys"><span class="key">SPACE</span></span> only on <strong>high beeps</strong> &nbsp;·&nbsp; ignore low beeps`,
+    duration: 180,
+    accent: "#9C7FB8",
+    science: {
+      description: "Multitasking is mostly a myth — what we actually do is rapidly switch attention. NeuroRacer (the basis for the FDA-approved EndeavorRx) showed that practice on a tightly-controlled dual-task — track a moving target AND respond to specific signals — produces measurable improvements in attention, even in older adults. Both demands are designed to compete for the same attentional resources.",
+      citation: "Anguera et al. (2013). Video game training enhances cognitive control in older adults. Nature, 501, 97–101.",
+    },
+  },
+  6: {
+    name: "The Long Hold",
+    paradigm: "Vigilance Decrement",
+    short: "Six minutes. Slow rhythm. Press SPACE for digits — except 3.",
+    rule: `Press <span class="keys"><span class="key">SPACE</span></span> for every digit &nbsp;·&nbsp; <strong>do NOT press for 3</strong> &nbsp;·&nbsp; for 6 long minutes`,
+    duration: 360,
+    accent: "#8A8A85",
+    science: {
+      description: "The vigilance decrement is one of the most replicated findings in attention research: performance reliably drops over the course of a long, monotonous task — usually within the first 15 minutes. This level is your stress test. Your accuracy in the last two minutes vs. the first two minutes is your real focus score. The point isn't to ace it on day one. It's to watch your decrement shrink over weeks of practice.",
+      citation: "Mackworth, N. H. (1948). The breakdown of vigilance during prolonged visual search. Quarterly Journal of Experimental Psychology.",
+    },
+  },
+  7: {
+    name: "Arrow Storm",
+    paradigm: "Flanker Task",
+    short: "Press the direction of the CENTER arrow. Ignore the four flankers.",
+    rule: `Press <span class="keys"><span class="key">←</span><span class="key">→</span></span> for the <strong>CENTER arrow only</strong> &nbsp;·&nbsp; ignore the flankers`,
+    duration: 150,
+    accent: "#D9A05B",
+    science: {
+      description: "Flankers are arrows that surround a central target arrow. When they point the same way (congruent), you respond fast. When they point the opposite way (incongruent), you have to actively suppress their pull on your attention. The size of that slowdown is your 'flanker effect' — a clean lab-validated index of selective attention. Smaller flanker effect, sharper focus.",
+      citation: "Eriksen & Eriksen (1974). Effects of noise letters upon the identification of a target letter in a nonsearch task. Perception & Psychophysics.",
+    },
+  },
+  8: {
+    name: "The Search",
+    paradigm: "Visual Search",
+    short: "Find the T hiding among the Ls. Click it as fast as you can.",
+    rule: `Click the <strong>T</strong> &nbsp;·&nbsp; ignore the Ls`,
+    duration: 180,
+    accent: "#7AAFA0",
+    science: {
+      description: "Finding a T among Ls is a 'conjunction search' — you can't pop-out spot it, you have to scan attention from one item to the next until you find it. As the number of distractors grows, your search time grows roughly linearly. Practice doesn't make the search instant, but it sharpens your attentional scanning and resistance to distraction.",
+      citation: "Treisman & Gelade (1980). A feature-integration theory of attention. Cognitive Psychology.",
+    },
+  },
+  9: {
+    name: "Track the Many",
+    paradigm: "Multiple Object Tracking",
+    short: "Watch which dots light up. Track them as all dots move identically. Click them at the end.",
+    rule: `Watch the highlighted dots &nbsp;·&nbsp; track them through motion &nbsp;·&nbsp; click them when motion stops`,
+    duration: 210,
+    accent: "#A988CC",
+    science: {
+      description: "Cognitive psychology says you can hold roughly 4 spatial 'attentional indices' in parallel. MOT is the cleanest measurement of that capacity. Once all dots look identical and start moving, only sustained, distributed attention keeps your indices locked on the right ones. Lose focus for a second and the indices drift to whichever dots happen to be nearest.",
+      citation: "Pylyshyn & Storm (1988). Tracking multiple independent targets: Evidence for a parallel tracking mechanism. Spatial Vision.",
+    },
+  },
+  10: {
+    name: "The Blink",
+    paradigm: "Attentional Blink",
+    short: "Two digits will appear in a fast letter stream. Report both.",
+    rule: `Watch the stream &nbsp;·&nbsp; remember <strong>both digits</strong> &nbsp;·&nbsp; report them after`,
+    duration: 180,
+    accent: "#C46E73",
+    science: {
+      description: "When you spot the first digit (T1), your attention briefly 'blinks' — for ~200–500ms after, you literally can't consciously perceive a second target. This isn't a flaw of yours; it's a hard limit of the human attention system. With practice, the blink shortens. This level lets you measure your own blink window and watch it shrink.",
+      citation: "Raymond, Shapiro & Arnell (1992). Temporary suppression of visual processing in an RSVP task: An attentional blink? Journal of Experimental Psychology.",
+    },
+  },
+  11: {
+    name: "Breath Pacer",
+    paradigm: "Mindful Single-Pointing",
+    short: "Press SPACE at the END of each exhale (when the circle is smallest).",
+    rule: `Watch the circle breathe &nbsp;·&nbsp; press <span class="keys"><span class="key">SPACE</span></span> at the <strong>end of each exhale</strong> (smallest)`,
+    duration: 240,
+    accent: "#6B9DC7",
+    science: {
+      description: "Of every paradigm in this game, focused-breathing practice has the strongest evidence for real-world transfer. Even brief mindful-breathing sessions reliably improve sustained attention measures — and unlike SART or Stroop, the practice itself is the point, not just the score. Breath counting is the most widely-studied objective measure of mind-wandering: when your mind drifts, your timing drifts.",
+      citation: "Levinson, Stoll, Kindy, Merry & Davidson (2014). A mind you can count on: Validating breath counting as a behavioral measure of mindfulness. Frontiers in Psychology.",
+    },
+  },
+  12: {
+    name: "Find What Changed",
+    paradigm: "Change Blindness",
+    short: "A grid of shapes will flicker. Click the one that changed.",
+    rule: `Click the <strong>shape that changed</strong> after the flicker &nbsp;·&nbsp; or <span class="keys"><span class="key">N</span></span> if nothing changed`,
+    duration: 180,
+    accent: "#9BAA63",
+    science: {
+      description: "Change blindness shows that without focused attention, even big changes go invisible. The brief flicker between two scenes wipes out the automatic 'pop-out' that would normally catch your eye, so you have to actively scan with attention to find what's different. The faster you can do this, the more efficiently your focus is allocating itself across the scene.",
+      citation: "Rensink, O'Regan & Clark (1997). To see or not to see: The need for attention to perceive changes in scenes. Psychological Science.",
+    },
+  },
+};
+
+const TOTAL_LEVELS = 12;
+
+const PRACTICE_DURATION = 30; // seconds
+const READY_PROMPT_TEXT = "Practice over. The real session counts toward your score and unlock progress.";
+
+const HONEST_NOTE = "These tasks reliably measure attention; with practice you'll get better at them. Whether 'better at the SART' transfers to 'better at focusing in real life' is honestly debated in the literature. The reliable benefit is the daily ritual of single-tasking itself.";
+
+// ==========================================================================
+// MENU RENDER
+// ==========================================================================
+
+function renderMenu() {
+  document.getElementById('streak').textContent = STATE.streak;
+  document.getElementById('totalSessions').textContent = STATE.sessions.length;
+  document.getElementById('unlockedCount').textContent = STATE.unlockedLevel;
+  document.getElementById('audioToggle').textContent = `Audio: ${STATE.audioEnabled ? 'on' : 'off'}`;
+
+  const container = document.getElementById('levels');
+  container.innerHTML = '';
+  for (let i = 1; i <= TOTAL_LEVELS; i++) {
+    const meta = LEVEL_META[i];
+    const locked = i > STATE.unlockedLevel;
+    const best = STATE.bestScores[i];
+    const card = document.createElement('div');
+    card.className = 'level-card' + (locked ? ' locked' : '');
+    card.innerHTML = `
+      <div class="level-num">${String(i).padStart(2, '0')}</div>
+      <div class="level-info">
+        <div class="name">${meta.name}</div>
+        <div class="paradigm">${meta.paradigm} · ${Math.round(meta.duration/60*10)/10} min</div>
+      </div>
+      <div class="level-stats">
+        ${best != null ? `<div class="best">${Math.round(best)}</div><div>best score</div>` : `<div>${locked ? 'locked' : 'not yet played'}</div>`}
+      </div>
+      <div class="level-actions">
+        <button class="info" data-info="${i}" title="Why this level">?</button>
+        <button class="play" data-play="${i}">${locked ? 'Locked' : 'Play'}</button>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+  // Wire up
+  container.querySelectorAll('[data-play]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = +btn.dataset.play;
+      if (id > STATE.unlockedLevel) return;
+      openTutorial(id);
+    });
+  });
+  container.querySelectorAll('[data-info]').forEach(btn => {
+    btn.addEventListener('click', () => openScience(+btn.dataset.info));
+  });
+}
+
+document.getElementById('audioToggle').addEventListener('click', () => {
+  STATE.audioEnabled = !STATE.audioEnabled;
+  saveState(); renderMenu();
+  if (STATE.audioEnabled) audio.ensure();
+});
+
+// ==========================================================================
+// MODALS
+// ==========================================================================
+
+function openTutorial(levelId) {
+  const meta = LEVEL_META[levelId];
+  document.getElementById('tutTitle').textContent = `Level ${levelId} — ${meta.name}`;
+  document.getElementById('tutParadigm').textContent = `${meta.paradigm} · ${meta.duration} seconds`;
+  document.getElementById('tutBody').innerHTML = tutorialBodyHTML(levelId);
+  document.getElementById('tutorialModal').classList.add('active');
+
+  const startBtn = document.getElementById('tutStart');
+  const cancelBtn = document.getElementById('tutCancel');
+  const onStart = () => {
+    cleanup();
+    document.getElementById('tutorialModal').classList.remove('active');
+    audio.ensure();
+    startLevel(levelId);
+  };
+  const onCancel = () => {
+    cleanup();
+    document.getElementById('tutorialModal').classList.remove('active');
+  };
+  function cleanup() {
+    startBtn.removeEventListener('click', onStart);
+    cancelBtn.removeEventListener('click', onCancel);
+  }
+  startBtn.addEventListener('click', onStart);
+  cancelBtn.addEventListener('click', onCancel);
+}
+function tutorialBodyHTML(levelId) {
+  const meta = LEVEL_META[levelId];
+  const lines = {
+    1: `<p>${meta.short}</p>
+        <ul>
+          <li>The dot will sit there, breathing softly.</li>
+          <li>Every few seconds, it will briefly dim.</li>
+          <li>Press <strong>SPACE</strong> as fast as you can when it dims.</li>
+          <li>Don't press at any other time.</li>
+        </ul>
+        <p style="color:var(--muted);font-size:13px">Tip: it gets boring on purpose. That's the whole point — see if you can stay engaged anyway.</p>`,
+    2: `<p>${meta.short}</p>
+        <ul>
+          <li>Digits will appear one at a time.</li>
+          <li>Press <strong>SPACE</strong> for any digit — but <strong>do not press</strong> when you see <strong>3</strong>.</li>
+          <li>Speed is the trap. Going on autopilot is exactly when you'll mistakenly hit 3.</li>
+        </ul>`,
+    3: `<p>${meta.short}</p>
+        <ul>
+          <li>You'll see color words like <span style="color:#D17B6F">RED</span>, <span style="color:#5B7CFA">BLUE</span>, <span style="color:#4FA877">GREEN</span>, <span style="color:#C18A6A">YELLOW</span>.</li>
+          <li>Press the key for the <strong>ink color</strong>, not what the word says.</li>
+          <li>Keys: <strong>R</strong> red · <strong>B</strong> blue · <strong>G</strong> green · <strong>Y</strong> yellow.</li>
+        </ul>`,
+    4: `<p>${meta.short}</p>
+        <ul>
+          <li>A target circle will drift across the screen.</li>
+          <li>Keep your <strong>mouse cursor</strong> on it.</li>
+          <li>Distractor shapes will flash and move — ignore them.</li>
+          <li>When the target briefly pulses brighter, press <strong>SPACE</strong>.</li>
+        </ul>`,
+    5: `<p>${meta.short}</p>
+        <ul>
+          <li>Same target-tracking as Level 4 — keep your cursor on it.</li>
+          <li>Now there's also audio: high beeps and low beeps.</li>
+          <li>Press <strong>SPACE</strong> only on <strong>high</strong> beeps. Ignore low beeps.</li>
+          <li>This level needs sound. Make sure your volume is on.</li>
+        </ul>`,
+    6: `<p>${meta.short}</p>
+        <ul>
+          <li>Six minutes. Slow rhythm. Same rule as Level 2 — press for every digit except 3.</li>
+          <li>Your real score is whether you can hold accuracy in the final two minutes the way you held it in the first two.</li>
+          <li>This is the hardest level not because it's fast, but because it's <em>long</em>.</li>
+        </ul>`,
+    7: `<p>${meta.short}</p>
+        <ul>
+          <li>Five arrows will appear in a row.</li>
+          <li>Press <strong>←</strong> or <strong>→</strong> to match the <strong>middle arrow</strong> only.</li>
+          <li>The four arrows on the sides will try to pull your attention. Resist them.</li>
+        </ul>`,
+    8: `<p>${meta.short}</p>
+        <ul>
+          <li>The screen will fill with rotated <strong>L</strong> letters.</li>
+          <li>Exactly one of them is a rotated <strong>T</strong>.</li>
+          <li><strong>Click it</strong> as fast as you can — a new search starts immediately.</li>
+        </ul>`,
+    9: `<p>${meta.short}</p>
+        <ul>
+          <li>Eight dots will appear. A few of them will <strong>highlight briefly</strong> — those are your targets.</li>
+          <li>All dots then look identical and start moving. <strong>Track your targets</strong> with your eyes.</li>
+          <li>When motion stops, <strong>click the dots you were tracking</strong>.</li>
+        </ul>`,
+    10: `<p>${meta.short}</p>
+        <ul>
+          <li>Letters will flash one at a time, very fast.</li>
+          <li><strong>Two digits</strong> are hidden in the stream. Remember both.</li>
+          <li>After the stream, click which digits you saw.</li>
+          <li>Don't worry if the second one feels invisible — that's the attentional blink, on purpose.</li>
+        </ul>`,
+    11: `<p>${meta.short}</p>
+        <ul>
+          <li>A circle will slowly expand (inhale) and contract (exhale).</li>
+          <li>Press <strong>SPACE</strong> at the moment the circle is <strong>smallest</strong> — the end of each exhale.</li>
+          <li>Match the rhythm. If you drift, just notice and return.</li>
+          <li>This is the most mindful level — it rewards being present, not being fast.</li>
+        </ul>`,
+    12: `<p>${meta.short}</p>
+        <ul>
+          <li>Several colored shapes appear in a grid for two seconds.</li>
+          <li>The screen flickers, then the shapes return.</li>
+          <li>One of them <strong>changed</strong> (color or shape). <strong>Click it</strong>.</li>
+          <li>If nothing changed, press <strong>N</strong>.</li>
+        </ul>`,
+  };
+  return lines[levelId];
+}
+
+function openScience(levelId) {
+  const meta = LEVEL_META[levelId];
+  document.getElementById('sciTitle').textContent = meta.name;
+  document.getElementById('sciParadigm').textContent = meta.paradigm;
+  document.getElementById('sciDescription').textContent = meta.science.description;
+  document.getElementById('sciCitation').textContent = meta.science.citation;
+  document.getElementById('sciHonest').textContent = HONEST_NOTE;
+  document.getElementById('scienceModal').classList.add('active');
+}
+document.getElementById('sciClose').addEventListener('click', () => {
+  document.getElementById('scienceModal').classList.remove('active');
+});
+
+// ==========================================================================
+// GAME ENGINE — main loop, dispatch
+// ==========================================================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const stage = document.getElementById('stage');
+const instructionsHint = document.getElementById('instructionsHint');
+const ruleBar = document.getElementById('ruleBar');
+const tapZone = document.getElementById('tapZone');
+
+// ==========================================================================
+// TAP CONTROLS — touch-device tap buttons that synthesize keyboard input
+// ==========================================================================
+// Each level configures tapZone via `tapMode` in its return object:
+//   'space'     → one big "TAP" button mapping to SPACE
+//   'arrows'    → LEFT/RIGHT buttons for Flanker
+//   'colors'    → R/B/G/Y buttons for Stroop
+//   'change'    → tap on canvas for click + an N button for "no change"
+//   'none'      → hide tap zone (Visual Search, MOT — pure canvas tap)
+//
+// On non-touch devices the zone is hidden via CSS, so all this is no-op overhead.
+
+function setupTapZone(mode, levelId) {
+  tapZone.innerHTML = '';
+  tapZone.className = 'tap-zone';
+  if (!mode || mode === 'none') return;
+
+  function fireKey(opts) {
+    const ev = { code: opts.code, key: opts.key, preventDefault: () => {} };
+    if (levelInstance && levelInstance.handleKey) levelInstance.handleKey(ev);
+  }
+  function makeBtn(label, onTap) {
+    const btn = document.createElement('button');
+    btn.className = 'tap-btn';
+    btn.innerHTML = label;
+    // Use pointerdown for snappy feedback; preventDefault to avoid double-fire on touchend->click
+    const handler = (e) => { e.preventDefault(); onTap(); };
+    btn.addEventListener('pointerdown', handler);
+    return btn;
+  }
+
+  if (mode === 'space') {
+    tapZone.classList.add('tap-single');
+    tapZone.appendChild(makeBtn('TAP', () => fireKey({ code: 'Space', key: ' ' })));
+  } else if (mode === 'arrows') {
+    tapZone.classList.add('tap-double');
+    tapZone.appendChild(makeBtn('← LEFT', () => fireKey({ code: 'ArrowLeft', key: 'ArrowLeft' })));
+    tapZone.appendChild(makeBtn('RIGHT →', () => fireKey({ code: 'ArrowRight', key: 'ArrowRight' })));
+  } else if (mode === 'colors') {
+    tapZone.classList.add('tap-quad');
+    const colors = [
+      { label: 'RED', key: 'r', hex: '#D17B6F' },
+      { label: 'BLUE', key: 'b', hex: '#5B7CFA' },
+      { label: 'GREEN', key: 'g', hex: '#4FA877' },
+      { label: 'YELLOW', key: 'y', hex: '#C9A14A' },
+    ];
+    for (const c of colors) {
+      const btn = makeBtn(`<span style="color:${c.hex}">${c.label}</span>`, () => fireKey({ key: c.key }));
+      tapZone.appendChild(btn);
+    }
+  } else if (mode === 'change') {
+    // Stage canvas handles taps (clicks). Add a single "N (no change)" button.
+    tapZone.classList.add('tap-single');
+    tapZone.appendChild(makeBtn("N — nothing changed", () => fireKey({ key: 'n' })));
+  }
+}
+
+function clearTapZone() {
+  tapZone.innerHTML = '';
+  tapZone.className = 'tap-zone';
+}
+
+let rafId = null;
+let levelInstance = null; // current running level controller
+let levelStartTime = 0;
+let countingDown = false;
+let gamePhase = 'idle';    // 'idle' | 'practice' | 'ready' | 'live'
+let practiceBadgeEl = null;
+let stageExtras = [];      // dom nodes added to stage that must be cleaned up
+
+function showPracticeBubble(text, kind = 'good') {
+  const stageRect = stage.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'practice-bubble ' + kind;
+  el.textContent = text;
+  el.style.left = '50%';
+  el.style.top = (stageRect.height * 0.35) + 'px';
+  stage.appendChild(el);
+  stageExtras.push(el);
+  setTimeout(() => { el.remove(); stageExtras = stageExtras.filter(x => x !== el); }, 1700);
+}
+
+function showPracticeBadge() {
+  hidePracticeBadge();
+  practiceBadgeEl = document.createElement('div');
+  practiceBadgeEl.className = 'practice-badge';
+  practiceBadgeEl.textContent = 'PRACTICE — score not counted';
+  stage.appendChild(practiceBadgeEl);
+}
+function hidePracticeBadge() {
+  if (practiceBadgeEl) { practiceBadgeEl.remove(); practiceBadgeEl = null; }
+}
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = stage.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (levelInstance && levelInstance.onResize) levelInstance.onResize(rect.width, rect.height);
+}
+window.addEventListener('resize', resizeCanvas);
+
+function clearStage() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  overlay.innerHTML = '';
+  instructionsHint.textContent = '';
+  ruleBar.innerHTML = '';
+  clearTapZone();
+  hidePracticeBadge();
+  stageExtras.forEach(el => el.remove()); stageExtras = [];
+  stage.classList.remove('stage-flash-good', 'stage-flash-bad');
+}
+
+function flashStage(kind) {
+  stage.classList.remove('stage-flash-good', 'stage-flash-bad');
+  void stage.offsetWidth;
+  stage.classList.add(kind === 'good' ? 'stage-flash-good' : 'stage-flash-bad');
+}
+
+// Levels call this for any reactive feedback. In practice mode it also
+// shows an explicit text bubble so the player knows exactly what just happened.
+function feedback(kind, text) {
+  flashStage(kind);
+  if (gamePhase === 'practice') {
+    showPracticeBubble(text || (kind === 'good' ? 'Hit!' : 'Wrong'), kind);
+  }
+}
+
+function startLevel(levelId) {
+  document.getElementById('menu').style.display = 'none';
+  const screen = document.getElementById('gameScreen');
+  screen.classList.add('active');
+  document.getElementById('gameLevelName').textContent = `Level ${levelId} — ${LEVEL_META[levelId].name}`;
+  resizeCanvas();
+  clearStage();
+  // Render persistent rule bar
+  const meta = LEVEL_META[levelId];
+  document.documentElement.style.setProperty('--accent', meta.accent);
+  ruleBar.innerHTML = meta.rule;
+  countdownThenRun(levelId);
+}
+
+function countdownThenRun(levelId) {
+  countingDown = true;
+  let n = 3;
+  overlay.innerHTML = `<div class="countdown">${n}</div>`;
+  const t = setInterval(() => {
+    n -= 1;
+    if (n > 0) {
+      overlay.innerHTML = `<div class="countdown">${n}</div>`;
+    } else {
+      clearInterval(t);
+      countingDown = false;
+      overlay.innerHTML = '';
+      runPractice(levelId);
+    }
+  }, 800);
+}
+
+function runPractice(levelId) {
+  gamePhase = 'practice';
+  showPracticeBadge();
+  levelInstance = makeLevel(levelId);
+  const env = {
+    canvas, ctx, overlay, stage, audio,
+    flash: feedback,
+    hint: (txt) => instructionsHint.textContent = txt || '',
+  };
+  levelInstance.init(env);
+  if (levelInstance.installLevelExtras) levelInstance.installLevelExtras(stage, stageExtras);
+  setupTapZone(levelInstance.tapMode, levelId);
+  levelStartTime = performance.now();
+  document.getElementById('timer').textContent = `Practice ${PRACTICE_DURATION}s`;
+  rafId = requestAnimationFrame(loop);
+}
+
+function loop(now) {
+  if (!levelInstance) return;
+  const elapsed = (now - levelStartTime) / 1000;
+  if (gamePhase === 'practice') {
+    const remaining = PRACTICE_DURATION - elapsed;
+    document.getElementById('timer').textContent = `Practice ${formatTime(Math.max(0, remaining))}`;
+    if (remaining <= 0) {
+      cancelAnimationFrame(rafId); rafId = null;
+      showReadyPrompt(levelInstance.id);
+      return;
+    }
+  } else if (gamePhase === 'live') {
+    const remaining = LEVEL_META[levelInstance.id].duration - elapsed;
+    document.getElementById('timer').textContent = formatTime(Math.max(0, remaining));
+    if (remaining <= 0) {
+      finishLevel();
+      return;
+    }
+  }
+  levelInstance.tick(now, elapsed);
+  rafId = requestAnimationFrame(loop);
+}
+
+function showReadyPrompt(levelId) {
+  hidePracticeBadge();
+  const prompt = document.createElement('div');
+  prompt.className = 'ready-prompt';
+  prompt.innerHTML = `
+    <h3>Ready when you are.</h3>
+    <p>${READY_PROMPT_TEXT}</p>
+    <button id="startSessionBtn">Start ${Math.round(LEVEL_META[levelId].duration / 60 * 10) / 10}-min session →</button>
+    <button class="keep-practicing" id="keepPracticingBtn">Practice another 30 seconds</button>
+  `;
+  stage.appendChild(prompt);
+  stageExtras.push(prompt);
+  document.getElementById('startSessionBtn').addEventListener('click', () => {
+    prompt.remove();
+    stageExtras = stageExtras.filter(x => x !== prompt);
+    runLive(levelId);
+  });
+  document.getElementById('keepPracticingBtn').addEventListener('click', () => {
+    prompt.remove();
+    stageExtras = stageExtras.filter(x => x !== prompt);
+    runPractice(levelId);
+  });
+}
+
+function runLive(levelId) {
+  gamePhase = 'live';
+  levelInstance = makeLevel(levelId);
+  const env = {
+    canvas, ctx, overlay, stage, audio,
+    flash: feedback,
+    hint: (txt) => instructionsHint.textContent = txt || '',
+  };
+  levelInstance.init(env);
+  if (levelInstance.installLevelExtras) levelInstance.installLevelExtras(stage, stageExtras);
+  setupTapZone(levelInstance.tapMode, levelId);
+  levelStartTime = performance.now();
+  rafId = requestAnimationFrame(loop);
+}
+function formatTime(s) {
+  const mm = Math.floor(s / 60);
+  const ss = Math.floor(s % 60);
+  return `${mm}:${String(ss).padStart(2,'0')}`;
+}
+
+function finishLevel() {
+  cancelAnimationFrame(rafId);
+  rafId = null;
+  const result = levelInstance.finish();
+  recordSessionCompletion(levelInstance.id, result.score, result.accuracy);
+  showResults(levelInstance.id, result);
+  levelInstance = null;
+  gamePhase = 'idle';
+}
+
+function quitLevel() {
+  if (!levelInstance) {
+    closeGameScreen();
+    return;
+  }
+  cancelAnimationFrame(rafId);
+  rafId = null;
+  levelInstance = null;
+  gamePhase = 'idle';
+  closeGameScreen();
+}
+function closeGameScreen() {
+  document.getElementById('gameScreen').classList.remove('active');
+  document.getElementById('menu').style.display = 'block';
+  clearStage();
+  renderMenu();
+}
+
+document.getElementById('quitBtn').addEventListener('click', quitLevel);
+
+// Global input
+window.addEventListener('keydown', (e) => {
+  if (countingDown) return;
+  if (levelInstance && levelInstance.handleKey) {
+    levelInstance.handleKey(e);
+  }
+});
+// Use pointer events to unify mouse + touch + pen
+canvas.addEventListener('pointermove', (e) => {
+  if (levelInstance && levelInstance.handleMouseMove) {
+    const rect = canvas.getBoundingClientRect();
+    levelInstance.handleMouseMove(e.clientX - rect.left, e.clientY - rect.top);
+  }
+});
+canvas.addEventListener('pointerdown', (e) => {
+  // Touch + tap: also feed mouseMove so tracking levels (L4/L5) snap to finger
+  if (levelInstance && levelInstance.handleMouseMove) {
+    const rect = canvas.getBoundingClientRect();
+    levelInstance.handleMouseMove(e.clientX - rect.left, e.clientY - rect.top);
+  }
+  if (levelInstance && levelInstance.handleClick) {
+    const rect = canvas.getBoundingClientRect();
+    levelInstance.handleClick(e.clientX - rect.left, e.clientY - rect.top);
+  }
+});
+// Prevent default touch behaviors (scroll/zoom) on canvas
+canvas.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+
+// ==========================================================================
+// RESULTS
+// ==========================================================================
+
+function showResults(levelId, result) {
+  const meta = LEVEL_META[levelId];
+  document.getElementById('resTitle').textContent = `Level ${levelId} complete`;
+  document.getElementById('resSub').textContent = `${meta.name} · ${meta.paradigm}`;
+  const m = document.getElementById('resMetrics');
+  m.innerHTML = '';
+  result.metrics.forEach(metric => {
+    const el = document.createElement('div');
+    el.className = 'metric';
+    el.innerHTML = `<div class="lbl">${metric.label}</div><div class="val">${metric.value}</div>`;
+    m.appendChild(el);
+  });
+  const v = document.getElementById('resVerdict');
+  const passed = result.accuracy >= 0.75;
+  const bestScore = STATE.bestScores[levelId];
+  const wasNewBest = bestScore != null && Math.round(bestScore) === Math.round(result.score) && (STATE.sessions.length === 0 || result.score === bestScore);
+  v.className = 'verdict ' + (passed ? 'passed' : 'failed');
+  let verdictMsg;
+  if (passed) {
+    verdictMsg = levelId < 6 && STATE.unlockedLevel > levelId
+      ? `Passed at ${Math.round(result.accuracy*100)}% accuracy. ${levelId < 6 ? `Level ${levelId+1} unlocked.` : ''}`
+      : `Passed at ${Math.round(result.accuracy*100)}% accuracy.`;
+  } else {
+    verdictMsg = `Accuracy ${Math.round(result.accuracy*100)}% — need ≥75% to ${levelId < 6 ? `unlock the next level` : 'count as a clean run'}. Try again.`;
+  }
+  v.textContent = verdictMsg;
+  document.getElementById('resultsModal').classList.add('active');
+
+  const playAgain = document.getElementById('resAgain');
+  const back = document.getElementById('resBack');
+  const onAgain = () => { close(); startLevel(levelId); };
+  const onBack = () => { close(); closeGameScreen(); };
+  function close() {
+    document.getElementById('resultsModal').classList.remove('active');
+    playAgain.removeEventListener('click', onAgain);
+    back.removeEventListener('click', onBack);
+  }
+  playAgain.addEventListener('click', onAgain);
+  back.addEventListener('click', onBack);
+}
+
+// ==========================================================================
+// LEVEL CONSTRUCTORS
+// ==========================================================================
+
+function makeLevel(id) {
+  switch (id) {
+    case 1: return makeLevel1();
+    case 2: return makeLevel2();
+    case 3: return makeLevel3();
+    case 4: return makeLevel4();
+    case 5: return makeLevel5();
+    case 6: return makeLevel6();
+    case 7: return makeLevel7();
+    case 8: return makeLevel8();
+    case 9: return makeLevel9();
+    case 10: return makeLevel10();
+    case 11: return makeLevel11();
+    case 12: return makeLevel12();
+  }
+}
+
+// ---- Adaptive helper ----
+function makeAdaptive({ initial = 1, min = 1, max = 10, windowMs = 30000 }) {
+  let level = initial;
+  let lastAdjust = 0;
+  let correct = 0, errors = 0;
+  return {
+    get level() { return level; },
+    record(isCorrect) { if (isCorrect) correct++; else errors++; },
+    maybeAdjust(now) {
+      if (now - lastAdjust < windowMs) return;
+      const total = correct + errors;
+      if (total < 3) { lastAdjust = now; return; }
+      const acc = correct / total;
+      if (acc > 0.85 && level < max) level += 1;
+      else if (acc < 0.60 && level > min) level -= 1;
+      lastAdjust = now;
+      correct = 0; errors = 0;
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 1 — HOLD THE DOT (Sustained Attention)
+// ==========================================================================
+
+function makeLevel1() {
+  let w, h;
+  let nextDimAt = 0;
+  let dimStartedAt = null;
+  let dimDuration = 250; // ms, scales 250 -> 100
+  const baseColor = LEVEL_META[1].accent;
+  let trials = []; // { rt, hit, falseAlarm }
+  let falseAlarms = 0;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6 });
+  let inhibitFalseAlarmUntil = 0;
+
+  function scheduleNextDim(now) {
+    nextDimAt = now + (3000 + Math.random() * 9000); // 3–12s
+  }
+
+  let stateLabelEl = null;
+  return {id: 1,tapMode: "space",    onResize(width, height) { w = width; h = height; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      env.hint('');
+      scheduleNextDim(performance.now());
+    },
+    installLevelExtras(stage, extras) {
+      stateLabelEl = document.createElement('div');
+      stateLabelEl.className = 'state-label';
+      stateLabelEl.textContent = 'WAITING';
+      stage.appendChild(stateLabelEl);
+      extras.push(stateLabelEl);
+    },
+    tick(now, elapsed) {
+      adaptive.maybeAdjust(now);
+      dimDuration = 250 - (adaptive.level - 1) * 30;
+      if (dimStartedAt == null && now >= nextDimAt) {
+        dimStartedAt = now;
+      }
+      // End dim if duration elapsed without press = miss
+      if (dimStartedAt != null && now - dimStartedAt >= dimDuration) {
+        trials.push({ rt: null, hit: false, falseAlarm: false });
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'Missed — the dot just dimmed');
+        dimStartedAt = null;
+        scheduleNextDim(now);
+      }
+
+      // RENDER
+      ctx.clearRect(0, 0, w, h);
+      const cx = w/2, cy = h/2;
+      const breathing = 0.5 + 0.5 * Math.sin(elapsed * 1.5); // 0..1
+      let alpha = 0.5 + 0.4 * breathing; // 0.5..0.9
+      if (dimStartedAt != null) alpha = 0.18;
+      ctx.beginPath();
+      ctx.fillStyle = baseColor;
+      ctx.globalAlpha = alpha;
+      ctx.arc(cx, cy, 36, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      if (stateLabelEl) {
+        const dimming = dimStartedAt != null;
+        stateLabelEl.textContent = dimming ? 'DIM — PRESS SPACE!' : 'waiting…';
+        stateLabelEl.classList.toggle('active', dimming);
+      }
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      const now = performance.now();
+      if (dimStartedAt != null) {
+        const rt = now - dimStartedAt;
+        trials.push({ rt, hit: true, falseAlarm: false });
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'Hit!');
+        dimStartedAt = null;
+        scheduleNextDim(now);
+      } else {
+        if (now < inhibitFalseAlarmUntil) return;
+        inhibitFalseAlarmUntil = now + 400;
+        falseAlarms++;
+        trials.push({ rt: null, hit: false, falseAlarm: true });
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', "Don't press unless the dot dims");
+      }
+    },
+    finish() {
+      const totalTargets = trials.filter(t => t.rt != null || (!t.falseAlarm && !t.hit)).length;
+      const hits = trials.filter(t => t.hit).length;
+      const misses = trials.filter(t => !t.hit && !t.falseAlarm).length;
+      const accuracy = totalTargets > 0 ? hits / totalTargets : 0;
+      const meanRT = hits > 0
+        ? trials.filter(t => t.hit).reduce((s,t)=>s+t.rt,0) / hits
+        : 800;
+      const score = meanRT * (1 - accuracy + 0.05) * 5 + falseAlarms * 30;
+      return {
+        score,
+        accuracy,
+        metrics: [
+          { label: 'Hits', value: `${hits}/${totalTargets}` },
+          { label: 'Mean reaction', value: `${Math.round(meanRT)} ms` },
+          { label: 'False alarms', value: `${falseAlarms}` },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+// ==========================================================================
+// LEVEL 2 — SKIP THE THREE (SART)
+// ==========================================================================
+
+function makeLevel2() {
+  let displayMs = 1000; // 1000 -> 250 with difficulty
+  const blankMs = 200;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 7 });
+  let phase = 'blank'; // 'show' | 'blank'
+  let phaseEnd = 0;
+  let currentDigit = null;
+  let pressedThisTrial = false;
+  let trialStart = 0;
+  let stats = { goCorrect: 0, goMiss: 0, noGoCorrect: 0, noGoFail: 0, rts: [] };
+
+  function nextDigit() {
+    // ~11% catch trials (3)
+    return Math.random() < 0.11 ? 3 : (Math.floor(Math.random()*8) + (Math.random() < 0.5 ? 1 : 4)); // 1,2,4..9 mostly + occasional 3
+    // simpler: 1-9 random, force ~11% to be 3
+  }
+  // Replace with cleaner version:
+  function pickDigit() {
+    if (Math.random() < 0.11) return 3;
+    let d;
+    do { d = Math.floor(Math.random() * 9) + 1; } while (d === 3);
+    return d;
+  }
+
+  return {id: 2,tapMode: "space",    init(env) {
+      env.hint('SPACE for every digit — except 3.');
+      phase = 'blank';
+      phaseEnd = performance.now() + 600;
+    },
+    tick(now) {
+      adaptive.maybeAdjust(now);
+      displayMs = 1000 - (adaptive.level - 1) * 125; // 1000, 875, 750, 625, 500, 375, 250
+
+      if (phase === 'blank' && now >= phaseEnd) {
+        currentDigit = pickDigit();
+        pressedThisTrial = false;
+        trialStart = now;
+        phase = 'show';
+        phaseEnd = now + displayMs;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        // Trial closed
+        if (currentDigit === 3) {
+          if (!pressedThisTrial) { stats.noGoCorrect++; adaptive.record(true); }
+          // (failure for 3 is logged on press)
+        } else {
+          if (!pressedThisTrial) { stats.goMiss++; adaptive.record(false); }
+        }
+        currentDigit = null;
+        phase = 'blank';
+        phaseEnd = now + blankMs;
+      }
+      // Render
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0,0,w,h);
+      if (phase === 'show' && currentDigit != null) {
+        ctx.fillStyle = LEVEL_META[2].accent;
+        ctx.font = '600 96px -apple-system, system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(currentDigit), w/2, h/2);
+      }
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      if (phase !== 'show' || pressedThisTrial) return;
+      pressedThisTrial = true;
+      const rt = performance.now() - trialStart;
+      if (currentDigit === 3) {
+        stats.noGoFail++;
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'That was a 3 — should not press');
+      } else {
+        stats.goCorrect++;
+        stats.rts.push(rt);
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'Correct');
+      }
+    },
+    finish() {
+      const goTotal = stats.goCorrect + stats.goMiss;
+      const noGoTotal = stats.noGoCorrect + stats.noGoFail;
+      const goAcc = goTotal ? stats.goCorrect / goTotal : 0;
+      const noGoAcc = noGoTotal ? stats.noGoCorrect / noGoTotal : 0;
+      // Overall accuracy weighted equally between go & no-go (SART convention)
+      const accuracy = (goAcc + (noGoTotal ? noGoAcc : goAcc)) / 2;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s,x)=>s+x,0) / stats.rts.length : 800;
+      const score = meanRT * (1 - accuracy + 0.05) * 5 + stats.noGoFail * 40;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Go correct', value: `${stats.goCorrect}/${goTotal}` },
+          { label: "No-go (3) held", value: `${stats.noGoCorrect}/${noGoTotal}` },
+          { label: 'Mean reaction', value: `${Math.round(meanRT)} ms` },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 3 — STROOP
+// ==========================================================================
+
+function makeLevel3() {
+  const COLORS = [
+    { name: 'RED',    key: 'r', hex: '#D17B6F' },
+    { name: 'BLUE',   key: 'b', hex: '#5B7CFA' },
+    { name: 'GREEN',  key: 'g', hex: '#4FA877' },
+    { name: 'YELLOW', key: 'y', hex: '#C9A14A' },
+  ];
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6 });
+  let displayMs = 2000; // 2000 -> 800
+  let phase = 'blank';
+  let phaseEnd = 0;
+  let trial = null;
+  let trialStart = 0;
+  let stats = { correct: 0, wrong: 0, missed: 0, rts: [] };
+
+  function nextTrial() {
+    const word = COLORS[Math.floor(Math.random() * 4)];
+    let ink;
+    if (Math.random() < 0.30) {
+      ink = word; // congruent
+    } else {
+      do { ink = COLORS[Math.floor(Math.random() * 4)]; } while (ink === word);
+    }
+    return { word, ink };
+  }
+
+  return {id: 3,tapMode: "colors",    init(env) {
+      env.hint('');
+      phase = 'blank';
+      phaseEnd = performance.now() + 600;
+    },
+    installLevelExtras(stage, extras) {
+      const key = document.createElement('div');
+      key.className = 'color-key';
+      key.innerHTML = COLORS.map(c =>
+        `<div class="ck"><span class="keycap">${c.key.toUpperCase()}</span><span style="color:${c.hex}">${c.name}</span></div>`
+      ).join('');
+      stage.appendChild(key);
+      extras.push(key);
+    },
+    tick(now) {
+      adaptive.maybeAdjust(now);
+      displayMs = 2000 - (adaptive.level - 1) * 240; // 2000..800
+      if (phase === 'blank' && now >= phaseEnd) {
+        trial = nextTrial();
+        trialStart = now;
+        phase = 'show';
+        phaseEnd = now + displayMs;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        stats.missed++;
+        adaptive.record(false);
+        feedback('bad', 'Too slow — be ready');
+        trial = null;
+        phase = 'blank';
+        phaseEnd = now + 200;
+      }
+      // Render
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0,0,w,h);
+      if (phase === 'show' && trial) {
+        ctx.fillStyle = trial.ink.hex;
+        ctx.font = '600 84px -apple-system, system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(trial.word.name, w/2, h/2);
+      }
+    },
+    handleKey(e) {
+      const k = e.key.toLowerCase();
+      if (!['r','b','g','y'].includes(k)) return;
+      if (phase !== 'show' || !trial) return;
+      const rt = performance.now() - trialStart;
+      if (k === trial.ink.key) {
+        stats.correct++;
+        stats.rts.push(rt);
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'Right ink color!');
+      } else {
+        stats.wrong++;
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'That was the WORD — press the INK color');
+      }
+      trial = null;
+      phase = 'blank';
+      phaseEnd = performance.now() + 200;
+    },
+    finish() {
+      const total = stats.correct + stats.wrong + stats.missed;
+      const accuracy = total ? stats.correct / total : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s,x)=>s+x,0) / stats.rts.length : 1500;
+      const score = meanRT * (1 - accuracy + 0.05) * 4;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Correct', value: `${stats.correct}/${total}` },
+          { label: 'Wrong key', value: `${stats.wrong}` },
+          { label: 'Mean reaction', value: `${Math.round(meanRT)} ms` },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 4 — TRACK THE TARGET (Selective Attention)
+// ==========================================================================
+
+function makeLevel4() {
+  let w, h;
+  let target = { x: 0, y: 0, r: 28 };
+  let mouse = { x: 0, y: 0 };
+  let distractors = [];
+  let pulseStartedAt = null;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6 });
+  let nextPulseAt = 0;
+  let pulseDuration = 600;
+  let onTargetMs = 0;
+  let totalMs = 0;
+  let lastTickMs = 0;
+  let pulseTrials = []; // {rt, hit}
+  let inhibitFalseUntil = 0;
+
+  function distractorCount() {
+    return 3 + (adaptive.level - 1) * 2; // 3,5,7,9,11,13
+  }
+  function targetMotionSpeed() {
+    return 0.6 + (adaptive.level - 1) * 0.15; // gentle scaling
+  }
+  function makeDistractor() {
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 80,
+      vy: (Math.random() - 0.5) * 80,
+      size: 14 + Math.random() * 12,
+      shape: Math.random() < 0.5 ? 'square' : 'triangle',
+      flashPhase: Math.random() * Math.PI * 2,
+      flashSpeed: 1 + Math.random() * 3,
+    };
+  }
+  function rebuildDistractors() {
+    const n = distractorCount();
+    while (distractors.length < n) distractors.push(makeDistractor());
+    while (distractors.length > n) distractors.pop();
+  }
+  function scheduleNextPulse(now) {
+    nextPulseAt = now + 4000 + Math.random() * 8000;
+  }
+
+  return {id: 4,tapMode: "space",    onResize(width, height) { w = width; h = height; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      target.x = w/2; target.y = h/2; target.r = 28;
+      mouse.x = w/2; mouse.y = h/2;
+      env.hint('Cursor on target. SPACE when it pulses brighter.');
+      rebuildDistractors();
+      scheduleNextPulse(performance.now());
+      lastTickMs = performance.now();
+    },
+    tick(now, elapsed) {
+      adaptive.maybeAdjust(now);
+      rebuildDistractors();
+      const dt = (now - lastTickMs) / 1000;
+      lastTickMs = now;
+      // Target motion: Lissajous
+      const sp = targetMotionSpeed();
+      target.x = w/2 + Math.cos(elapsed * sp * 0.7) * (w*0.3);
+      target.y = h/2 + Math.sin(elapsed * sp * 1.1) * (h*0.3);
+      // Distractors
+      for (const d of distractors) {
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        if (d.x < 0 || d.x > w) d.vx *= -1;
+        if (d.y < 0 || d.y > h) d.vy *= -1;
+        d.flashPhase += dt * d.flashSpeed;
+      }
+      // On-target tracking
+      const dx = mouse.x - target.x, dy = mouse.y - target.y;
+      const onTarget = Math.sqrt(dx*dx + dy*dy) < target.r + 12;
+      if (onTarget) onTargetMs += (now - lastTickMs > 0 ? (now - lastTickMs) : dt*1000);
+      totalMs += dt * 1000;
+      // Pulse
+      if (pulseStartedAt == null && now >= nextPulseAt) {
+        pulseStartedAt = now;
+      }
+      if (pulseStartedAt != null && now - pulseStartedAt >= pulseDuration) {
+        pulseTrials.push({ rt: null, hit: false });
+        adaptive.record(false);
+        feedback('bad', 'Missed the pulse');
+        pulseStartedAt = null;
+        scheduleNextPulse(now);
+      }
+      // Render
+      ctx.clearRect(0,0,w,h);
+      // Distractors
+      for (const d of distractors) {
+        const a = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin(d.flashPhase));
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#8A8A85';
+        if (d.shape === 'square') {
+          ctx.fillRect(d.x - d.size/2, d.y - d.size/2, d.size, d.size);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y - d.size/2);
+          ctx.lineTo(d.x - d.size/2, d.y + d.size/2);
+          ctx.lineTo(d.x + d.size/2, d.y + d.size/2);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+      // Target
+      const isPulsing = pulseStartedAt != null;
+      ctx.beginPath();
+      ctx.fillStyle = LEVEL_META[4].accent;
+      ctx.globalAlpha = isPulsing ? 1.0 : 0.85;
+      ctx.arc(target.x, target.y, isPulsing ? target.r * 1.2 : target.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // On-target ring
+      if (onTarget) {
+        ctx.strokeStyle = LEVEL_META[4].accent;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.r + 12, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      const now = performance.now();
+      if (pulseStartedAt != null) {
+        const rt = now - pulseStartedAt;
+        pulseTrials.push({ rt, hit: true });
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'Pulse hit!');
+        pulseStartedAt = null;
+        scheduleNextPulse(now);
+      } else {
+        if (now < inhibitFalseUntil) return;
+        inhibitFalseUntil = now + 400;
+        pulseTrials.push({ rt: null, hit: false, falseAlarm: true });
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'Press only when target pulses');
+      }
+    },
+    handleMouseMove(x, y) { mouse.x = x; mouse.y = y; },
+    finish() {
+      const onTargetPct = totalMs > 0 ? onTargetMs / totalMs : 0;
+      const real = pulseTrials.filter(t => !t.falseAlarm);
+      const hits = real.filter(t => t.hit).length;
+      const total = real.length;
+      const pulseAcc = total ? hits / total : 0;
+      const meanRT = pulseTrials.filter(t => t.rt != null).reduce((s,t,_,a) => a.length ? s + t.rt/a.length : s, 0) || 800;
+      const accuracy = (onTargetPct + pulseAcc) / 2;
+      const score = meanRT * (1 - accuracy + 0.05) * 4 + (pulseTrials.filter(t=>t.falseAlarm).length * 30);
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'On target', value: `${Math.round(onTargetPct*100)}%` },
+          { label: 'Pulse hits', value: `${hits}/${total}` },
+          { label: 'Mean reaction', value: `${Math.round(meanRT)} ms` },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 5 — TWO THINGS AT ONCE (Dual Task)
+// ==========================================================================
+
+function makeLevel5() {
+  let w, h;
+  let target = { x: 0, y: 0, r: 28 };
+  let mouse = { x: 0, y: 0 };
+  let distractors = [];
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 5 });
+  let nextToneAt = 0;
+  let lastTargetToneAt = null; // ms; wait for press
+  let onTargetMs = 0, totalMs = 0;
+  let lastTickMs = 0;
+  let toneTrials = []; // {rt, hit, type:'target'|'distractor', falseAlarm}
+  const TARGET_FREQ = 880, DISTRACTOR_FREQS = [330, 440, 550];
+  let toneListenWindow = 1000;
+  let inhibitFalseUntil = 0;
+
+  function scheduleNextTone(now) {
+    nextToneAt = now + 2200 + Math.random() * 3500;
+  }
+  function distractorCount() { return 4 + (adaptive.level - 1) * 2; }
+  function makeDistractor() {
+    return {
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random()-0.5) * 70, vy: (Math.random()-0.5) * 70,
+      size: 14 + Math.random()*10,
+    };
+  }
+  function rebuildDistractors() {
+    const n = distractorCount();
+    while (distractors.length < n) distractors.push(makeDistractor());
+    while (distractors.length > n) distractors.pop();
+  }
+
+  return {id: 5,tapMode: "space",    onResize(width, height) { w = width; h = height; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      target.x = w/2; target.y = h/2;
+      mouse.x = w/2; mouse.y = h/2;
+      env.hint('Track target with cursor. SPACE on HIGH beeps only.');
+      rebuildDistractors();
+      scheduleNextTone(performance.now());
+      lastTickMs = performance.now();
+    },
+    tick(now, elapsed) {
+      adaptive.maybeAdjust(now);
+      rebuildDistractors();
+      const dt = (now - lastTickMs) / 1000;
+      lastTickMs = now;
+      // Target motion
+      const sp = 0.7 + (adaptive.level - 1) * 0.18;
+      target.x = w/2 + Math.cos(elapsed * sp * 0.65) * (w*0.32);
+      target.y = h/2 + Math.sin(elapsed * sp * 1.15) * (h*0.32);
+      // Distractors
+      for (const d of distractors) {
+        d.x += d.vx * dt; d.y += d.vy * dt;
+        if (d.x < 0 || d.x > w) d.vx *= -1;
+        if (d.y < 0 || d.y > h) d.vy *= -1;
+      }
+      // On-target
+      const dx = mouse.x - target.x, dy = mouse.y - target.y;
+      if (Math.sqrt(dx*dx+dy*dy) < target.r + 12) onTargetMs += dt * 1000;
+      totalMs += dt * 1000;
+      // Tones
+      if (now >= nextToneAt) {
+        const isTarget = Math.random() < 0.45;
+        if (isTarget) {
+          audio.toneNow(TARGET_FREQ, 220, 0.10);
+          lastTargetToneAt = now;
+        } else {
+          const f = DISTRACTOR_FREQS[Math.floor(Math.random()*DISTRACTOR_FREQS.length)];
+          audio.toneNow(f, 220, 0.08);
+          // Mark a trial so false-alarms count
+          toneTrials.push({ type: 'distractor', heardAt: now, resolved: false, hit: false });
+        }
+        scheduleNextTone(now);
+      }
+      // Close target tone window if no press
+      if (lastTargetToneAt != null && now - lastTargetToneAt > toneListenWindow) {
+        toneTrials.push({ type: 'target', rt: null, hit: false });
+        adaptive.record(false);
+        feedback('bad', 'Missed the HIGH beep');
+        lastTargetToneAt = null;
+      }
+      // Resolve unresolved distractor trials after window
+      for (const t of toneTrials) {
+        if (t.type === 'distractor' && !t.resolved && now - t.heardAt > toneListenWindow) {
+          t.resolved = true;
+          // Correct rejection — counts as adaptive correct
+          adaptive.record(true);
+        }
+      }
+
+      // Render
+      ctx.clearRect(0,0,w,h);
+      for (const d of distractors) {
+        ctx.fillStyle = '#8A8A85';
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(d.x - d.size/2, d.y - d.size/2, d.size, d.size);
+      }
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.fillStyle = LEVEL_META[5].accent;
+      ctx.arc(target.x, target.y, target.r, 0, Math.PI*2);
+      ctx.fill();
+      const onT = Math.sqrt(dx*dx + dy*dy) < target.r + 12;
+      if (onT) {
+        ctx.strokeStyle = LEVEL_META[5].accent;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(target.x, target.y, target.r + 12, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      const now = performance.now();
+      if (lastTargetToneAt != null) {
+        const rt = now - lastTargetToneAt;
+        toneTrials.push({ type: 'target', rt, hit: true });
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'High beep — got it!');
+        lastTargetToneAt = null;
+      } else {
+        let falsed = false;
+        for (const t of toneTrials) {
+          if (t.type === 'distractor' && !t.resolved && now - t.heardAt < toneListenWindow) {
+            t.resolved = true; t.hit = false; t.falseAlarm = true;
+            falsed = true;
+            break;
+          }
+        }
+        if (now < inhibitFalseUntil) return;
+        inhibitFalseUntil = now + 400;
+        if (!falsed) {
+          toneTrials.push({ type: 'spurious', rt: null, falseAlarm: true });
+        }
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', falsed ? 'That was a LOW beep — ignore' : 'No high beep playing');
+      }
+    },
+    handleMouseMove(x, y) { mouse.x = x; mouse.y = y; },
+    finish() {
+      const onTargetPct = totalMs > 0 ? onTargetMs / totalMs : 0;
+      const targetTrials = toneTrials.filter(t => t.type === 'target');
+      const targetHits = targetTrials.filter(t => t.hit).length;
+      const targetTotal = targetTrials.length;
+      const targetAcc = targetTotal ? targetHits / targetTotal : 0;
+      const distractors = toneTrials.filter(t => t.type === 'distractor');
+      const distractorTotal = distractors.length;
+      const distractorCorrect = distractors.filter(t => !t.hit && !t.falseAlarm).length;
+      const distractorAcc = distractorTotal ? distractorCorrect / distractorTotal : 1;
+      const meanRT = targetTrials.filter(t => t.rt != null).reduce((s,t,_,a) => a.length ? s + t.rt/a.length : s, 0) || 800;
+      const accuracy = (onTargetPct + targetAcc + distractorAcc) / 3;
+      const falseAlarms = toneTrials.filter(t => t.falseAlarm).length;
+      const score = meanRT * (1 - accuracy + 0.05) * 4 + falseAlarms * 25;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'On target', value: `${Math.round(onTargetPct*100)}%` },
+          { label: 'High beeps', value: `${targetHits}/${targetTotal}` },
+          { label: 'Low beeps ignored', value: `${distractorCorrect}/${distractorTotal}` },
+          { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 6 — THE LONG HOLD (Vigilance)
+// ==========================================================================
+
+function makeLevel6() {
+  // Slow SART, 6 minutes, with windowed accuracy tracking
+  const displayMs = 1500;
+  let phase = 'blank';
+  let phaseEnd = 0;
+  let currentDigit = null;
+  let pressedThisTrial = false;
+  let trialStart = 0;
+  let stats = { goCorrect: 0, goMiss: 0, noGoCorrect: 0, noGoFail: 0, rts: [] };
+  // Window tracking: first 2 min and last 2 min
+  let windowStats = { first: { correct: 0, total: 0 }, last: { correct: 0, total: 0 } };
+  let levelStartedAt = 0;
+
+  function pickDigit() {
+    if (Math.random() < 0.11) return 3;
+    let d;
+    do { d = Math.floor(Math.random() * 9) + 1; } while (d === 3);
+    return d;
+  }
+  function nextISI() {
+    return 6000 + Math.random() * 9000; // 6–15s between digits
+  }
+  function recordWindow(now, isCorrect) {
+    const elapsedSec = (now - levelStartedAt) / 1000;
+    if (elapsedSec < 120) {
+      windowStats.first.total += 1;
+      if (isCorrect) windowStats.first.correct += 1;
+    } else if (elapsedSec > LEVEL_META[6].duration - 120) {
+      windowStats.last.total += 1;
+      if (isCorrect) windowStats.last.correct += 1;
+    }
+  }
+
+  return {id: 6,tapMode: "space",    init(env) {
+      env.hint('Slow rhythm. SPACE for every digit — except 3.');
+      phase = 'blank';
+      phaseEnd = performance.now() + 1500;
+      levelStartedAt = performance.now();
+    },
+    tick(now) {
+      if (phase === 'blank' && now >= phaseEnd) {
+        currentDigit = pickDigit();
+        pressedThisTrial = false;
+        trialStart = now;
+        phase = 'show';
+        phaseEnd = now + displayMs;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        if (currentDigit === 3) {
+          if (!pressedThisTrial) {
+            stats.noGoCorrect++;
+            recordWindow(now, true);
+          }
+        } else {
+          if (!pressedThisTrial) {
+            stats.goMiss++;
+            recordWindow(now, false);
+          }
+        }
+        currentDigit = null;
+        phase = 'blank';
+        phaseEnd = now + nextISI();
+      }
+      // Render
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0,0,w,h);
+      if (phase === 'show' && currentDigit != null) {
+        ctx.fillStyle = LEVEL_META[6].accent;
+        ctx.font = '600 96px -apple-system, system-ui, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(currentDigit), w/2, h/2);
+      }
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      const now = performance.now();
+      if (phase !== 'show' || pressedThisTrial) return;
+      pressedThisTrial = true;
+      const rt = now - trialStart;
+      if (currentDigit === 3) {
+        stats.noGoFail++;
+        recordWindow(now, false);
+        audio.bad();
+        feedback('bad', 'That was a 3 — should not press');
+      } else {
+        stats.goCorrect++;
+        stats.rts.push(rt);
+        recordWindow(now, true);
+        audio.good();
+        feedback('good', 'Correct');
+      }
+    },
+    finish() {
+      const goTotal = stats.goCorrect + stats.goMiss;
+      const noGoTotal = stats.noGoCorrect + stats.noGoFail;
+      const goAcc = goTotal ? stats.goCorrect / goTotal : 0;
+      const noGoAcc = noGoTotal ? stats.noGoCorrect / noGoTotal : goAcc;
+      const accuracy = (goAcc + noGoAcc) / 2;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s,x)=>s+x,0)/stats.rts.length : 800;
+      const firstAcc = windowStats.first.total ? windowStats.first.correct / windowStats.first.total : 0;
+      const lastAcc = windowStats.last.total ? windowStats.last.correct / windowStats.last.total : 0;
+      const decrement = firstAcc - lastAcc;
+      const score = meanRT * (1 - accuracy + 0.05) * 5 + stats.noGoFail * 40 + Math.max(0, decrement) * 200;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Go correct', value: `${stats.goCorrect}/${goTotal}` },
+          { label: 'No-go held', value: `${stats.noGoCorrect}/${noGoTotal}` },
+          { label: 'First 2 min acc.', value: `${Math.round(firstAcc*100)}%` },
+          { label: 'Last 2 min acc.', value: `${Math.round(lastAcc*100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 7 — ARROW STORM (Flanker)
+// ==========================================================================
+
+function makeLevel7() {
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6 });
+  let displayMs = 1500;
+  let phase = 'blank';
+  let phaseEnd = 0;
+  let trial = null;
+  let pressedThisTrial = false;
+  let trialStart = 0;
+  let stats = { correct: 0, wrong: 0, missed: 0, rts: [], congRT: [], incongRT: [] };
+
+  function newTrial() {
+    const center = Math.random() < 0.5 ? 'left' : 'right';
+    const congruent = Math.random() < 0.30;
+    const flankers = congruent ? center : (center === 'left' ? 'right' : 'left');
+    return { center, flankers, congruent };
+  }
+  function drawArrow(x, y, size, dir, alpha) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (dir === 'left') ctx.rotate(Math.PI);
+    ctx.fillStyle = LEVEL_META[7].accent;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(-size*0.5, -size*0.25);
+    ctx.lineTo(size*0.15, -size*0.25);
+    ctx.lineTo(size*0.15, -size*0.5);
+    ctx.lineTo(size*0.6, 0);
+    ctx.lineTo(size*0.15, size*0.5);
+    ctx.lineTo(size*0.15, size*0.25);
+    ctx.lineTo(-size*0.5, size*0.25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  return {id: 7,tapMode: "arrows",    init(env) {
+      env.hint('');
+      phase = 'blank';
+      phaseEnd = performance.now() + 600;
+    },
+    tick(now) {
+      adaptive.maybeAdjust(now);
+      displayMs = 1500 - (adaptive.level - 1) * 180; // 1500..600
+      if (phase === 'blank' && now >= phaseEnd) {
+        trial = newTrial();
+        pressedThisTrial = false;
+        trialStart = now;
+        phase = 'show';
+        phaseEnd = now + displayMs;
+      } else if (phase === 'show' && now >= phaseEnd) {
+        if (!pressedThisTrial) {
+          stats.missed++;
+          adaptive.record(false);
+          feedback('bad', 'Too slow');
+        }
+        trial = null;
+        phase = 'blank';
+        phaseEnd = now + 250;
+      }
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'show' && trial) {
+        const cx = w/2, cy = h/2;
+        const spacing = 75, size = 50;
+        for (let i = 0; i < 5; i++) {
+          const x = cx + (i - 2) * spacing;
+          const isCenter = i === 2;
+          const dir = isCenter ? trial.center : trial.flankers;
+          drawArrow(x, cy, size, dir, isCenter ? 1.0 : 0.55);
+        }
+      }
+    },
+    handleKey(e) {
+      let pressed = null;
+      if (e.code === 'ArrowLeft' || e.key === 'a' || e.key === 'A') pressed = 'left';
+      else if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') pressed = 'right';
+      else return;
+      e.preventDefault();
+      if (phase !== 'show' || !trial || pressedThisTrial) return;
+      pressedThisTrial = true;
+      const rt = performance.now() - trialStart;
+      if (pressed === trial.center) {
+        stats.correct++;
+        stats.rts.push(rt);
+        if (trial.congruent) stats.congRT.push(rt); else stats.incongRT.push(rt);
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'Correct');
+      } else {
+        stats.wrong++;
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'Center arrow only — ignore the flankers');
+      }
+    },
+    finish() {
+      const total = stats.correct + stats.wrong + stats.missed;
+      const accuracy = total ? stats.correct / total : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s,x)=>s+x,0)/stats.rts.length : 1000;
+      const meanCong = stats.congRT.length ? stats.congRT.reduce((s,x)=>s+x,0)/stats.congRT.length : meanRT;
+      const meanIncong = stats.incongRT.length ? stats.incongRT.reduce((s,x)=>s+x,0)/stats.incongRT.length : meanRT;
+      const flankerEffect = Math.max(0, meanIncong - meanCong);
+      const score = meanRT * (1 - accuracy + 0.05) * 4 + flankerEffect * 0.5;
+      return { score, accuracy, metrics: [
+        { label: 'Correct', value: `${stats.correct}/${total}` },
+        { label: 'Mean RT', value: `${Math.round(meanRT)} ms` },
+        { label: 'Flanker effect', value: `${Math.round(flankerEffect)} ms` },
+        { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+      ]};
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 8 — THE SEARCH (Visual Search)
+// ==========================================================================
+
+function makeLevel8() {
+  let w, h;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6 });
+  let items = [];
+  let trialStart = 0;
+  let stats = { correct: 0, wrong: 0, rts: [] };
+
+  function distractorCount() { return 12 + (adaptive.level - 1) * 8; } // 12..52
+  function nextTrial(now) {
+    items = [];
+    const N = distractorCount();
+    const placed = [];
+    function place() {
+      let tries = 0;
+      while (tries < 30) {
+        const x = 40 + Math.random() * (w - 80);
+        const y = 60 + Math.random() * (h - 120);
+        let ok = true;
+        for (const p of placed) {
+          if (Math.hypot(p.x - x, p.y - y) < 48) { ok = false; break; }
+        }
+        if (ok) { placed.push({ x, y }); return { x, y }; }
+        tries++;
+      }
+      return { x: 40 + Math.random() * (w - 80), y: 60 + Math.random() * (h - 120) };
+    }
+    for (let i = 0; i < N; i++) {
+      const { x, y } = place();
+      items.push({ x, y, char: 'L', rot: Math.random() * Math.PI * 2, isTarget: false });
+    }
+    const targetIdx = Math.floor(Math.random() * items.length);
+    items[targetIdx].char = 'T';
+    items[targetIdx].isTarget = true;
+    trialStart = now;
+  }
+
+  return {id: 8,tapMode: "none",    onResize(width, height) { w = width; h = height; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      env.hint('');
+      nextTrial(performance.now());
+    },
+    tick(now) {
+      adaptive.maybeAdjust(now);
+      const r = canvas.getBoundingClientRect();
+      const cw = r.width, ch = r.height;
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.font = '600 28px -apple-system, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = LEVEL_META[8].accent;
+      for (const it of items) {
+        ctx.save();
+        ctx.translate(it.x, it.y);
+        ctx.rotate(it.rot);
+        ctx.fillText(it.char, 0, 0);
+        ctx.restore();
+      }
+    },
+    handleClick(x, y) {
+      let hit = null, nearest = Infinity;
+      for (const it of items) {
+        const d = Math.hypot(it.x - x, it.y - y);
+        if (d < 24 && d < nearest) { hit = it; nearest = d; }
+      }
+      if (!hit) return;
+      const rt = performance.now() - trialStart;
+      if (hit.isTarget) {
+        stats.correct++;
+        stats.rts.push(rt);
+        adaptive.record(true);
+        audio.good();
+        feedback('good', `Found in ${(rt/1000).toFixed(1)}s`);
+        nextTrial(performance.now());
+      } else {
+        stats.wrong++;
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'That was an L — keep looking for T');
+      }
+    },
+    finish() {
+      const total = stats.correct + stats.wrong;
+      const accuracy = total > 0 ? stats.correct / total : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s,x)=>s+x,0)/stats.rts.length : 5000;
+      const score = meanRT * (1 - accuracy + 0.05);
+      return { score, accuracy, metrics: [
+        { label: 'Targets found', value: `${stats.correct}` },
+        { label: 'Wrong clicks', value: `${stats.wrong}` },
+        { label: 'Mean find time', value: `${(meanRT/1000).toFixed(1)} s` },
+        { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+      ]};
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 9 — TRACK THE MANY (MOT)
+// ==========================================================================
+
+function makeLevel9() {
+  let w, h;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 5 });
+  let phase = 'show'; // 'show' | 'move' | 'click' | 'feedback'
+  let phaseEnd = 0;
+  let dots = [];
+  let targets = new Set();
+  let userPicks = new Set();
+  let stats = { trials: 0, perfect: 0, totalTargets: 0, captured: 0 };
+
+  function targetCount() { return 2 + Math.floor((adaptive.level - 1) / 2); } // 2,2,3,3,4
+  function moveTimeMs() { return 6000 + (adaptive.level - 1) * 800; } // 6..9.2s
+  function speed() { return 80 + (adaptive.level - 1) * 30; }
+
+  function newTrial(now) {
+    const N = 8;
+    dots = [];
+    const cx = w/2, cy = h/2, R = Math.min(w, h) * 0.30;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      dots.push({ idx: i, x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, vx: 0, vy: 0 });
+    }
+    targets.clear();
+    while (targets.size < targetCount()) targets.add(Math.floor(Math.random() * N));
+    stats.totalTargets += targets.size;
+    userPicks.clear();
+    phase = 'show';
+    phaseEnd = now + 1500;
+  }
+
+  return {id: 9,tapMode: "none",    onResize(width, height) { w = width; h = height; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      env.hint('');
+      newTrial(performance.now());
+    },
+    tick(now) {
+      if (phase === 'show' && now >= phaseEnd) {
+        for (const d of dots) {
+          const ang = Math.random() * Math.PI * 2;
+          d.vx = Math.cos(ang) * speed();
+          d.vy = Math.sin(ang) * speed();
+        }
+        phase = 'move';
+        phaseEnd = now + moveTimeMs();
+      }
+      if (phase === 'move' && now >= phaseEnd) {
+        for (const d of dots) { d.vx = 0; d.vy = 0; }
+        phase = 'click';
+      }
+      if (phase === 'move') {
+        const dt = 1/60;
+        for (const d of dots) {
+          d.x += d.vx * dt; d.y += d.vy * dt;
+          if (d.x < 24) { d.x = 24; d.vx *= -1; }
+          if (d.x > w - 24) { d.x = w - 24; d.vx *= -1; }
+          if (d.y < 24) { d.y = 24; d.vy *= -1; }
+          if (d.y > h - 24) { d.y = h - 24; d.vy *= -1; }
+          d.vx += (Math.random() - 0.5) * 8;
+          d.vy += (Math.random() - 0.5) * 8;
+          const sp = Math.hypot(d.vx, d.vy);
+          if (sp > speed() * 1.3) {
+            d.vx = d.vx / sp * speed();
+            d.vy = d.vy / sp * speed();
+          }
+          // Repulsion to prevent overlap
+          for (const e of dots) {
+            if (e === d) continue;
+            const dx = d.x - e.x, dy = d.y - e.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 44 && dist > 0) {
+              d.vx += (dx/dist) * 50 * dt;
+              d.vy += (dy/dist) * 50 * dt;
+            }
+          }
+        }
+      }
+      ctx.clearRect(0, 0, w, h);
+      const accent = LEVEL_META[9].accent;
+      // Phase label
+      ctx.font = '500 14px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#8A8A85';
+      const phaseLabel = phase === 'show' ? 'Memorize the highlighted dots'
+        : phase === 'move' ? 'Track them as they move'
+        : phase === 'click' ? `Click the ${targets.size} targets` : 'Result';
+      ctx.fillText(phaseLabel, w/2, 16);
+      for (const d of dots) {
+        const showAsTarget = phase === 'show' && targets.has(d.idx);
+        const userPicked = userPicks.has(d.idx);
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, 18, 0, Math.PI*2);
+        if (showAsTarget) {
+          ctx.fillStyle = accent; ctx.globalAlpha = 1;
+        } else {
+          ctx.fillStyle = '#8A8A85'; ctx.globalAlpha = 0.55;
+        }
+        ctx.fill();
+        if (userPicked && phase === 'click') {
+          ctx.strokeStyle = accent; ctx.globalAlpha = 1; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(d.x, d.y, 22, 0, Math.PI*2); ctx.stroke();
+        }
+        if (phase === 'feedback') {
+          if (targets.has(d.idx)) {
+            ctx.strokeStyle = userPicks.has(d.idx) ? '#4FA877' : '#D17B6F';
+            ctx.lineWidth = 4; ctx.globalAlpha = 1;
+            ctx.beginPath(); ctx.arc(d.x, d.y, 24, 0, Math.PI*2); ctx.stroke();
+          } else if (userPicks.has(d.idx)) {
+            ctx.strokeStyle = '#D17B6F';
+            ctx.lineWidth = 4; ctx.globalAlpha = 1;
+            ctx.beginPath(); ctx.arc(d.x, d.y, 24, 0, Math.PI*2); ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+    },
+    handleClick(x, y) {
+      if (phase !== 'click') return;
+      let hit = null, nearest = Infinity;
+      for (const d of dots) {
+        const dist = Math.hypot(d.x - x, d.y - y);
+        if (dist < 30 && dist < nearest) { hit = d; nearest = dist; }
+      }
+      if (!hit) return;
+      if (userPicks.has(hit.idx)) {
+        userPicks.delete(hit.idx);
+      } else if (userPicks.size < targets.size) {
+        userPicks.add(hit.idx);
+      }
+      if (userPicks.size === targets.size) {
+        let correctCount = 0;
+        for (const idx of userPicks) if (targets.has(idx)) correctCount++;
+        stats.captured += correctCount;
+        stats.trials++;
+        const allRight = correctCount === targets.size;
+        if (allRight) {
+          stats.perfect++;
+          adaptive.record(true);
+          audio.good();
+          feedback('good', `Got all ${targets.size}!`);
+        } else {
+          adaptive.record(false);
+          audio.bad();
+          feedback('bad', `${correctCount}/${targets.size} correct`);
+        }
+        phase = 'feedback';
+        setTimeout(() => { if (phase === 'feedback') newTrial(performance.now()); }, 1600);
+      }
+    },
+    finish() {
+      const accuracy = stats.totalTargets > 0 ? stats.captured / stats.totalTargets : 0;
+      const score = (1 - accuracy) * 1000 + (stats.trials > 0 ? 200 / stats.trials * 100 : 500);
+      return { score, accuracy, metrics: [
+        { label: 'Trials completed', value: `${stats.trials}` },
+        { label: 'Perfect trials', value: `${stats.perfect}/${stats.trials}` },
+        { label: 'Targets caught', value: `${stats.captured}/${stats.totalTargets}` },
+        { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+      ]};
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 10 — THE BLINK (Attentional Blink)
+// ==========================================================================
+
+function makeLevel10() {
+  // RSVP stream of letters, with two digits hidden inside.
+  // After stream, multiple-choice the two digits.
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 5 });
+  let phase = 'idle'; // 'stream' | 'choice1' | 'choice2' | 'result'
+  let stream = []; // {char, t}  scheduled letters
+  let nextItemAt = 0;
+  let streamIdx = 0;
+  let trialStart = 0;
+  let trialDigits = [null, null]; // T1, T2
+  let userAnswers = [null, null];
+  let lagMs = 300; // time between T1 and T2
+  let stats = { trials: 0, t1Correct: 0, t2GivenT1: 0, t1Trials: 0 };
+  let choiceButtons = [];
+
+  const ITEM_DURATION_BASE = 110; // ms per letter
+  const STREAM_LEN = 18;
+
+  function buildStream() {
+    const letters = 'ABCDEFGHIJKLMNPQRSTUVWXYZ'.split('').filter(l => l !== 'O' && l !== 'I'); // avoid digit-like
+    const items = [];
+    for (let i = 0; i < STREAM_LEN; i++) {
+      items.push({ char: letters[Math.floor(Math.random() * letters.length)], isTarget: false });
+    }
+    // Pick T1 position (between idx 4 and 8)
+    const t1Pos = 4 + Math.floor(Math.random() * 4);
+    // T1 is a digit
+    const d1 = String(1 + Math.floor(Math.random() * 9));
+    items[t1Pos] = { char: d1, isTarget: true };
+    // Lag: vary based on adaptive level — easier levels have longer lags
+    const lagItems = adaptive.level <= 2 ? (Math.random() < 0.5 ? 4 : 6) : (Math.random() < 0.5 ? 2 : 3);
+    const t2Pos = Math.min(t1Pos + lagItems, STREAM_LEN - 1);
+    let d2;
+    do { d2 = String(1 + Math.floor(Math.random() * 9)); } while (d2 === d1);
+    items[t2Pos] = { char: d2, isTarget: true };
+    trialDigits = [d1, d2];
+    lagMs = lagItems * ITEM_DURATION_BASE;
+    return items;
+  }
+
+  function startStream(now) {
+    stream = buildStream();
+    streamIdx = 0;
+    nextItemAt = now + 600;
+    phase = 'stream';
+    trialStart = now;
+  }
+
+  function showChoice(forIdx) {
+    // Build 4 options: the correct + 3 random other digits
+    const correct = trialDigits[forIdx];
+    const opts = new Set([correct]);
+    while (opts.size < 4) opts.add(String(1 + Math.floor(Math.random() * 9)));
+    const arr = Array.from(opts).sort(() => Math.random() - 0.5);
+    // Render via overlay
+    overlay.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:18px;pointer-events:auto;">
+        <div style="font-size:18px;font-weight:600;">What was the ${forIdx === 0 ? 'FIRST' : 'SECOND'} digit?</div>
+        <div style="display:flex;gap:12px;">
+          ${arr.map(d => `<button data-digit="${d}" style="width:64px;height:64px;font-size:28px;font-weight:600;background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;">${d}</button>`).join('')}
+          ${forIdx === 1 ? `<button data-digit="?" style="width:80px;height:64px;font-size:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;">didn't see</button>` : ''}
+        </div>
+      </div>`;
+    choiceButtons = Array.from(overlay.querySelectorAll('button[data-digit]'));
+    choiceButtons.forEach(btn => btn.addEventListener('click', () => {
+      const d = btn.dataset.digit;
+      userAnswers[forIdx] = d;
+      overlay.innerHTML = '';
+      if (forIdx === 0) {
+        phase = 'choice2';
+        showChoice(1);
+      } else {
+        // Score this trial
+        stats.trials++;
+        const t1Right = userAnswers[0] === trialDigits[0];
+        const t2Right = userAnswers[1] === trialDigits[1];
+        if (t1Right) {
+          stats.t1Correct++;
+          stats.t1Trials++;
+          if (t2Right) stats.t2GivenT1++;
+        }
+        adaptive.record(t1Right && t2Right);
+        if (t1Right && t2Right) {
+          audio.good(); feedback('good', 'Got both!');
+        } else if (t1Right) {
+          audio.bad(); feedback('bad', `Missed T2 (${trialDigits[1]}). The blink is real.`);
+        } else {
+          audio.bad(); feedback('bad', `T1 was ${trialDigits[0]}, T2 was ${trialDigits[1]}`);
+        }
+        userAnswers = [null, null];
+        // Brief pause then next stream
+        phase = 'idle';
+        setTimeout(() => { if (gamePhase !== 'idle') startStream(performance.now()); }, 1200);
+      }
+    }));
+  }
+
+  return {id: 10,tapMode: "none",    init(env) {
+      env.hint('');
+      startStream(performance.now());
+    },
+    tick(now) {
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'stream') {
+        if (streamIdx < stream.length && now >= nextItemAt) {
+          streamIdx++;
+          nextItemAt = now + ITEM_DURATION_BASE;
+        }
+        if (streamIdx >= stream.length) {
+          phase = 'choice1';
+          showChoice(0);
+          return;
+        }
+        const it = stream[streamIdx];
+        if (it) {
+          ctx.fillStyle = it.isTarget ? LEVEL_META[10].accent : '#2A2A2A';
+          ctx.font = '600 96px -apple-system, system-ui, sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(it.char, w/2, h/2);
+        }
+      }
+    },
+    handleKey() {},
+    finish() {
+      const accuracy = stats.t1Trials ? stats.t2GivenT1 / stats.t1Trials : 0;
+      const t1Acc = stats.trials ? stats.t1Correct / stats.trials : 0;
+      const overallAcc = (t1Acc + accuracy) / 2;
+      const score = (1 - overallAcc) * 1000 + 100;
+      return { score, accuracy: overallAcc, metrics: [
+        { label: 'Trials', value: `${stats.trials}` },
+        { label: 'T1 (first digit)', value: `${stats.t1Correct}/${stats.trials}` },
+        { label: 'T2 given T1', value: `${stats.t2GivenT1}/${stats.t1Trials} (${Math.round(accuracy*100)}%)` },
+        { label: 'Accuracy', value: `${Math.round(overallAcc*100)}%` },
+      ]};
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 11 — BREATH PACER (Mindful Single-Pointing)
+// ==========================================================================
+
+function makeLevel11() {
+  let w, h;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 4, windowMs: 60000 });
+  let breathPeriod = 8000; // 8s
+  let startedAt = 0;
+  let lastCycleNum = -1;
+  let pressedThisCycle = false;
+  let stats = { breaths: 0, hits: 0, deviations: [] };
+
+  return {id: 11,tapMode: "space",    onResize(w_, h_) { w = w_; h = h_; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      env.hint('');
+      startedAt = performance.now();
+      lastCycleNum = -1;
+      pressedThisCycle = false;
+    },
+    tick(now) {
+      adaptive.maybeAdjust(now);
+      // Difficulty: shorter cycle (faster breathing) at higher levels
+      breathPeriod = 9000 - (adaptive.level - 1) * 1000; // 9s, 8s, 7s, 6s
+      const elapsed = now - startedAt;
+      const cycleNum = Math.floor(elapsed / breathPeriod);
+      const phaseInBreath = (elapsed % breathPeriod) / breathPeriod;
+      // sin(phase * π) gives 0 at start, 1 at middle, 0 at end — perfect breath shape
+      const sin = Math.sin(phaseInBreath * Math.PI);
+      // New cycle started: close out the previous if not pressed
+      if (cycleNum !== lastCycleNum) {
+        if (lastCycleNum >= 0 && !pressedThisCycle) {
+          stats.breaths++;
+          stats.deviations.push(breathPeriod);
+          adaptive.record(false);
+          feedback('bad', 'Missed the end of the breath');
+        }
+        lastCycleNum = cycleNum;
+        pressedThisCycle = false;
+      }
+      // Render
+      const cx = w/2, cy = h/2;
+      const baseR = 30, maxR = Math.min(w, h) * 0.30;
+      const r = baseR + (maxR - baseR) * sin;
+      ctx.clearRect(0, 0, w, h);
+      // Outer ring (target)
+      ctx.strokeStyle = LEVEL_META[11].accent;
+      ctx.globalAlpha = 0.18;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseR, 0, Math.PI*2);
+      ctx.stroke();
+      // Breathing circle
+      ctx.fillStyle = LEVEL_META[11].accent;
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Label
+      ctx.font = '500 16px -apple-system, system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#8A8A85';
+      const labelY = cy + maxR + 30;
+      const inhale = phaseInBreath < 0.5;
+      ctx.fillText(inhale ? 'inhale…' : 'exhale…', cx, labelY);
+      ctx.font = '500 13px -apple-system, system-ui, sans-serif';
+      ctx.fillStyle = '#B0B0AC';
+      ctx.fillText(`breath ${stats.breaths + 1}`, cx, labelY + 26);
+    },
+    handleKey(e) {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      if (pressedThisCycle) return;
+      const elapsed = performance.now() - startedAt;
+      const phaseInBreath = (elapsed % breathPeriod) / breathPeriod;
+      // Window: 0.85..1.0 OR 0.0..0.05 (wrap-around at end of breath)
+      const distFromEnd = phaseInBreath > 0.5 ? (1 - phaseInBreath) : (phaseInBreath + (1 - 1)); // simpler: how far from 1
+      const wrappedDist = Math.min(1 - phaseInBreath, phaseInBreath);
+      // How close to phase=1 (end of breath)?
+      const dist = Math.min(Math.abs(1 - phaseInBreath), phaseInBreath);
+      pressedThisCycle = true;
+      stats.breaths++;
+      const devMs = dist * breathPeriod;
+      stats.deviations.push(devMs);
+      if (devMs < 700) {
+        stats.hits++;
+        adaptive.record(true);
+        audio.good();
+        feedback('good', devMs < 250 ? 'Perfect rhythm' : 'On rhythm');
+      } else {
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'Wait until the circle is smallest');
+      }
+    },
+    finish() {
+      const accuracy = stats.breaths ? stats.hits / stats.breaths : 0;
+      const meanDev = stats.deviations.length ? stats.deviations.reduce((s,x)=>s+x,0)/stats.deviations.length : breathPeriod/2;
+      const score = meanDev;
+      return { score, accuracy, metrics: [
+        { label: 'Breaths', value: `${stats.breaths}` },
+        { label: 'On-rhythm', value: `${stats.hits}/${stats.breaths}` },
+        { label: 'Mean deviation', value: `${Math.round(meanDev)} ms` },
+        { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+      ]};
+    },
+  };
+}
+
+// ==========================================================================
+// LEVEL 12 — FIND WHAT CHANGED (Change Blindness)
+// ==========================================================================
+
+function makeLevel12() {
+  let w, h;
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 5 });
+  let phase = 'show1'; // 'show1' | 'mask' | 'show2' | 'feedback'
+  let phaseEnd = 0;
+  let shapesA = [];
+  let shapesB = [];
+  let changedIdx = -1; // -1 = no change
+  let trialStart = 0;
+  let stats = { correct: 0, wrong: 0, missed: 0, rts: [] };
+  const SHAPE_KINDS = ['square', 'circle', 'triangle'];
+  const SHAPE_COLORS = ['#D17B6F', '#5B7CFA', '#4FA877', '#C9A14A', '#9C7FB8'];
+  const SHOW_DURATION = 1800;
+  const MASK_DURATION = 250;
+
+  function shapeCount() { return 4 + (adaptive.level - 1); } // 4..8
+  function newTrial(now) {
+    const N = shapeCount();
+    shapesA = [];
+    const cols = Math.ceil(Math.sqrt(N));
+    const cellW = w / (cols + 1);
+    const cellH = h / (cols + 1);
+    let placed = 0;
+    for (let r = 0; r < cols && placed < N; r++) {
+      for (let c = 0; c < cols && placed < N; c++) {
+        const jitterX = (Math.random() - 0.5) * cellW * 0.4;
+        const jitterY = (Math.random() - 0.5) * cellH * 0.4;
+        shapesA.push({
+          x: cellW * (c + 1) + jitterX,
+          y: cellH * (r + 1) + jitterY,
+          kind: SHAPE_KINDS[Math.floor(Math.random() * SHAPE_KINDS.length)],
+          color: SHAPE_COLORS[Math.floor(Math.random() * SHAPE_COLORS.length)],
+          size: 36,
+        });
+        placed++;
+      }
+    }
+    // Decide if change happens (~88% trials change, ~12% no change)
+    const willChange = Math.random() < 0.88;
+    shapesB = shapesA.map(s => ({ ...s }));
+    if (willChange) {
+      changedIdx = Math.floor(Math.random() * shapesB.length);
+      const target = shapesB[changedIdx];
+      const changeWhat = Math.random() < 0.5 ? 'color' : 'kind';
+      if (changeWhat === 'color') {
+        let c;
+        do { c = SHAPE_COLORS[Math.floor(Math.random() * SHAPE_COLORS.length)]; } while (c === target.color);
+        target.color = c;
+      } else {
+        let k;
+        do { k = SHAPE_KINDS[Math.floor(Math.random() * SHAPE_KINDS.length)]; } while (k === target.kind);
+        target.kind = k;
+      }
+    } else {
+      changedIdx = -1;
+    }
+    phase = 'show1';
+    phaseEnd = now + SHOW_DURATION;
+    trialStart = now;
+  }
+  function drawShape(s) {
+    ctx.fillStyle = s.color;
+    if (s.kind === 'square') {
+      ctx.fillRect(s.x - s.size/2, s.y - s.size/2, s.size, s.size);
+    } else if (s.kind === 'circle') {
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.size/2, 0, Math.PI*2); ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - s.size/2);
+      ctx.lineTo(s.x - s.size/2, s.y + s.size/2);
+      ctx.lineTo(s.x + s.size/2, s.y + s.size/2);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  return {id: 12,tapMode: "change",    onResize(width, height) { w = width; h = height; },
+    init(env) {
+      const r = env.canvas.getBoundingClientRect();
+      w = r.width; h = r.height;
+      env.hint('');
+      newTrial(performance.now());
+    },
+    tick(now) {
+      adaptive.maybeAdjust(now);
+      if (phase === 'show1' && now >= phaseEnd) {
+        phase = 'mask';
+        phaseEnd = now + MASK_DURATION;
+      } else if (phase === 'mask' && now >= phaseEnd) {
+        phase = 'show2';
+        trialStart = now;
+      } else if (phase === 'feedback' && now >= phaseEnd) {
+        newTrial(now);
+      }
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'show1') {
+        for (const s of shapesA) drawShape(s);
+      } else if (phase === 'mask') {
+        // Random noise
+        for (let i = 0; i < 200; i++) {
+          ctx.fillStyle = `rgba(${Math.random()*255|0},${Math.random()*255|0},${Math.random()*255|0},0.15)`;
+          ctx.fillRect(Math.random()*w, Math.random()*h, 8, 8);
+        }
+      } else if (phase === 'show2' || phase === 'feedback') {
+        for (let i = 0; i < shapesB.length; i++) {
+          drawShape(shapesB[i]);
+          if (phase === 'feedback' && i === changedIdx) {
+            ctx.strokeStyle = '#4FA877';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(shapesB[i].x - shapesB[i].size/2 - 4, shapesB[i].y - shapesB[i].size/2 - 4,
+              shapesB[i].size + 8, shapesB[i].size + 8);
+          }
+        }
+      }
+      // Hint at bottom
+      if (phase === 'show2') {
+        ctx.font = '500 13px system-ui';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#8A8A85';
+        ctx.fillText('Click what changed · or press N if nothing changed', w/2, h - 20);
+      }
+    },
+    handleKey(e) {
+      if (e.key !== 'n' && e.key !== 'N') return;
+      if (phase !== 'show2') return;
+      const rt = performance.now() - trialStart;
+      if (changedIdx === -1) {
+        stats.correct++;
+        stats.rts.push(rt);
+        adaptive.record(true);
+        audio.good();
+        feedback('good', 'Right — nothing changed');
+      } else {
+        stats.wrong++;
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', 'Something did change — look again next time');
+      }
+      phase = 'feedback';
+      phaseEnd = performance.now() + 1100;
+    },
+    handleClick(x, y) {
+      if (phase !== 'show2') return;
+      let hit = -1, nearest = Infinity;
+      for (let i = 0; i < shapesB.length; i++) {
+        const s = shapesB[i];
+        const d = Math.hypot(s.x - x, s.y - y);
+        if (d < s.size && d < nearest) { hit = i; nearest = d; }
+      }
+      if (hit === -1) return;
+      const rt = performance.now() - trialStart;
+      if (hit === changedIdx) {
+        stats.correct++;
+        stats.rts.push(rt);
+        adaptive.record(true);
+        audio.good();
+        feedback('good', `Found it in ${(rt/1000).toFixed(1)}s`);
+      } else {
+        stats.wrong++;
+        adaptive.record(false);
+        audio.bad();
+        feedback('bad', changedIdx === -1 ? 'Nothing actually changed — press N' : 'Wrong shape');
+      }
+      phase = 'feedback';
+      phaseEnd = performance.now() + 1100;
+    },
+    finish() {
+      const total = stats.correct + stats.wrong;
+      const accuracy = total ? stats.correct / total : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((s,x)=>s+x,0)/stats.rts.length : 4000;
+      const score = meanRT * (1 - accuracy + 0.05);
+      return { score, accuracy, metrics: [
+        { label: 'Correct', value: `${stats.correct}/${total}` },
+        { label: 'Wrong', value: `${stats.wrong}` },
+        { label: 'Mean detection', value: `${(meanRT/1000).toFixed(1)} s` },
+        { label: 'Accuracy', value: `${Math.round(accuracy*100)}%` },
+      ]};
+    },
+  };
+}
+
+// ==========================================================================
+// INIT
+// ==========================================================================
+
+renderMenu();
+window.addEventListener('load', () => {
+  // ensure canvas sized when stage shown later
+});
+</script>
+</body>
+</html>

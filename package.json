@@ -1,0 +1,14 @@
+{
+  "name": "one-thing-focus-game",
+  "version": "1.0.0",
+  "description": "A focus-training game grounded in attention-science research. 12 levels, 12 paradigms.",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 5173",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
+  },
+  "devDependencies": {
+    "vercel": "^39.0.0"
+  }
+}
