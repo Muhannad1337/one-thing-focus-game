@@ -1,6 +1,10 @@
 FROM nginx:alpine
 COPY index.html /usr/share/nginx/html/index.html
 COPY README.md /usr/share/nginx/html/README.md
+COPY favicon.svg /usr/share/nginx/html/favicon.svg
+COPY favicon-32.png /usr/share/nginx/html/favicon-32.png
+COPY apple-touch-icon.png /usr/share/nginx/html/apple-touch-icon.png
+COPY icon-512.png /usr/share/nginx/html/icon-512.png
 
 # Listen on $PORT (CranL convention) — fall back to 80 for local
 RUN apk add --no-cache gettext
