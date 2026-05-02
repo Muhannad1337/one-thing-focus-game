@@ -373,6 +373,22 @@
     }
   }
 
+  /* Multi-color row (Stroop L5: 6 colors → 2 rows of 3) */
+  .tap-zone.tap-colors-multi { display: none; flex-wrap: wrap; padding: 4px; gap: 0; height: auto; min-height: 130px; }
+  @media (any-pointer: coarse) {
+    .tap-zone.tap-colors-multi { display: flex; }
+    .tap-zone.tap-colors-multi .tap-btn {
+      flex: 0 0 calc(33.333% - 8px);
+      margin: 4px;
+      min-height: 50px;
+      font-size: 13px;
+    }
+  }
+
+  /* Hide tap zone entirely when no buttons are configured (e.g. Schulte) so the
+     canvas isn't pushed up by an empty 130px strip on mobile. */
+  .tap-zone:empty { display: none !important; }
+
   /* Mobile responsive layout — narrow screens */
   @media (max-width: 600px) {
     .app { padding: 20px 16px 48px; }
@@ -1236,15 +1252,18 @@ function setupTapZone(mode, levelId) {
     tapZone.appendChild(makeBtn('← LEFT', () => fireKey({ code: 'ArrowLeft', key: 'ArrowLeft' })));
     tapZone.appendChild(makeBtn('RIGHT →', () => fireKey({ code: 'ArrowRight', key: 'ArrowRight' })));
   } else if (mode === 'colors') {
-    tapZone.classList.add('tap-quad');
-    const colors = [
-      { label: 'RED', key: 'r', hex: '#D17B6F' },
-      { label: 'BLUE', key: 'b', hex: '#5B7CFA' },
-      { label: 'GREEN', key: 'g', hex: '#4FA877' },
-      { label: 'YELLOW', key: 'y', hex: '#C9A14A' },
+    // Levels can override the default 4-color palette via `colorsForTap`.
+    // 5+ colors switch to a 2-row wrapping layout so they fit on mobile.
+    const colors = (levelInstance && levelInstance.colorsForTap) || [
+      { name: 'RED', key: 'r', hex: '#D17B6F' },
+      { name: 'BLUE', key: 'b', hex: '#5B7CFA' },
+      { name: 'GREEN', key: 'g', hex: '#4FA877' },
+      { name: 'YELLOW', key: 'y', hex: '#C9A14A' },
     ];
+    tapZone.classList.add(colors.length <= 4 ? 'tap-quad' : 'tap-colors-multi');
     for (const c of colors) {
-      const btn = makeBtn(`<span style="color:${c.hex}">${c.label}</span>`, () => fireKey({ key: c.key }));
+      const label = c.label || c.name;
+      const btn = makeBtn(`<span style="color:${c.hex}">${label}</span>`, () => fireKey({ key: c.key }));
       tapZone.appendChild(btn);
     }
   } else if (mode === 'change') {
@@ -1257,6 +1276,15 @@ function setupTapZone(mode, levelId) {
 function clearTapZone() {
   tapZone.innerHTML = '';
   tapZone.className = 'tap-zone';
+}
+
+// Returns the y-coordinate where stims should be vertically centered.
+// On mobile the tap zone occludes the bottom ~130–170px of the canvas; this
+// shifts content up so it stays visible above the tap zone.
+// On desktop tapZone has 0 height (display: none) and this returns h/2.
+function centerY(canvasHeight) {
+  const tz = (tapZone && tapZone.children.length > 0) ? tapZone.offsetHeight : 0;
+  return (canvasHeight - tz) / 2;
 }
 
 let rafId = null;
@@ -1650,7 +1678,7 @@ function makeLevel1() {
 
       // RENDER
       ctx.clearRect(0, 0, w, h);
-      const cx = w/2, cy = h/2;
+      const cx = w/2, cy = centerY(h);
       const breathing = 0.5 + 0.5 * Math.sin(elapsed * 1.5); // 0..1
       let alpha = 0.5 + 0.4 * breathing; // 0.5..0.9
       if (dimStartedAt != null) alpha = 0.18;
@@ -1773,7 +1801,7 @@ function makeLevel2() {
         ctx.fillStyle = LEVEL_META[2].accent;
         ctx.font = '600 96px -apple-system, system-ui, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(currentDigit), w/2, h/2);
+        ctx.fillText(String(currentDigit), w/2, centerY(h));
       }
     },
     handleKey(e) {
@@ -1885,7 +1913,7 @@ function makeLevel3() {
         ctx.fillStyle = trial.ink.hex;
         ctx.font = '600 84px -apple-system, system-ui, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(trial.word.name, w/2, h/2);
+        ctx.fillText(trial.word.name, w/2, centerY(h));
       }
     },
     handleKey(e) {
@@ -1977,8 +2005,8 @@ function makeLevel4() {
     init(env) {
       const r = env.canvas.getBoundingClientRect();
       w = r.width; h = r.height;
-      target.x = w/2; target.y = h/2; target.r = 28;
-      mouse.x = w/2; mouse.y = h/2;
+      target.x = w/2; target.y = centerY(h); target.r = 28;
+      mouse.x = w/2; mouse.y = centerY(h);
       env.hint('Cursor on target. SPACE when it pulses brighter.');
       rebuildDistractors();
       scheduleNextPulse(performance.now());
@@ -1992,7 +2020,7 @@ function makeLevel4() {
       // Target motion: Lissajous
       const sp = targetMotionSpeed();
       target.x = w/2 + Math.cos(elapsed * sp * 0.7) * (w*0.3);
-      target.y = h/2 + Math.sin(elapsed * sp * 1.1) * (h*0.3);
+      target.y = centerY(h) + Math.sin(elapsed * sp * 1.1) * (h*0.3);
       // Distractors
       for (const d of distractors) {
         d.x += d.vx * dt;
@@ -2139,8 +2167,8 @@ function makeLevel5() {
     init(env) {
       const r = env.canvas.getBoundingClientRect();
       w = r.width; h = r.height;
-      target.x = w/2; target.y = h/2;
-      mouse.x = w/2; mouse.y = h/2;
+      target.x = w/2; target.y = centerY(h);
+      mouse.x = w/2; mouse.y = centerY(h);
       env.hint('Track target with cursor. SPACE on HIGH beeps only.');
       rebuildDistractors();
       scheduleNextTone(performance.now());
@@ -2154,7 +2182,7 @@ function makeLevel5() {
       // Target motion
       const sp = 0.7 + (adaptive.level - 1) * 0.18;
       target.x = w/2 + Math.cos(elapsed * sp * 0.65) * (w*0.32);
-      target.y = h/2 + Math.sin(elapsed * sp * 1.15) * (h*0.32);
+      target.y = centerY(h) + Math.sin(elapsed * sp * 1.15) * (h*0.32);
       // Distractors
       for (const d of distractors) {
         d.x += d.vx * dt; d.y += d.vy * dt;
@@ -2350,7 +2378,7 @@ function makeLevel6() {
         ctx.fillStyle = LEVEL_META[6].accent;
         ctx.font = '600 96px -apple-system, system-ui, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(currentDigit), w/2, h/2);
+        ctx.fillText(String(currentDigit), w/2, centerY(h));
       }
     },
     handleKey(e) {
@@ -2465,7 +2493,7 @@ function makeLevel7() {
       const w = r.width, h = r.height;
       ctx.clearRect(0, 0, w, h);
       if (phase === 'show' && trial) {
-        const cx = w/2, cy = h/2;
+        const cx = w/2, cy = centerY(h);
         const spacing = 75, size = 50;
         for (let i = 0; i < 5; i++) {
           const x = cx + (i - 2) * spacing;
@@ -2637,7 +2665,7 @@ function makeLevel9() {
   function newTrial(now) {
     const N = 8;
     dots = [];
-    const cx = w/2, cy = h/2, R = Math.min(w, h) * 0.30;
+    const cx = w/2, cy = centerY(h), R = Math.min(w, h) * 0.30;
     for (let i = 0; i < N; i++) {
       const a = (i / N) * Math.PI * 2;
       dots.push({ idx: i, x: cx + Math.cos(a) * R, y: cy + Math.sin(a) * R, vx: 0, vy: 0 });
@@ -2907,7 +2935,7 @@ function makeLevel10() {
           ctx.fillStyle = it.isTarget ? LEVEL_META[10].accent : '#2A2A2A';
           ctx.font = '600 96px -apple-system, system-ui, sans-serif';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillText(it.char, w/2, h/2);
+          ctx.fillText(it.char, w/2, centerY(h));
         }
       }
     },
@@ -2970,7 +2998,7 @@ function makeLevel11() {
         pressedThisCycle = false;
       }
       // Render
-      const cx = w/2, cy = h/2;
+      const cx = w/2, cy = centerY(h);
       const baseR = 30, maxR = Math.min(w, h) * 0.30;
       const r = baseR + (maxR - baseR) * sin;
       ctx.clearRect(0, 0, w, h);
@@ -3720,7 +3748,7 @@ function makeFlankerCore(opts) {
       const w = r.width, h = r.height;
       ctx.clearRect(0, 0, w, h);
       if (phase === 'show' && currentTrial) {
-        const cx = w / 2, cy = h / 2;
+        const cx = w / 2, cy = centerY(h);
         const size = Math.min(64, Math.min(w, h) * 0.12);
         const gap = size * 1.4;
         const center = currentTrial.centerDir;
@@ -3942,6 +3970,7 @@ function makeStroopCore(opts) {
   return {
     id: opts.id,
     tapMode: "colors",
+    colorsForTap: COLORS,
     init(env) {
       env.hint('Press the key for the INK color (or WORD when cued).');
       phase = 'blank';
@@ -3986,7 +4015,7 @@ function makeStroopCore(opts) {
         ctx.font = `600 ${fontSize}px -apple-system, system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(trial.word.name, w/2, h/2);
+        ctx.fillText(trial.word.name, w/2, centerY(h));
       }
     },
     handleKey(e) {
@@ -4221,7 +4250,7 @@ function makeNbackCore(opts) {
         ctx.font = `600 ${Math.min(180, Math.min(w, h) * 0.32)}px -apple-system, system-ui, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(currentSymbol.sym, w/2, h/2);
+        ctx.fillText(currentSymbol.sym, w/2, centerY(h));
       }
       ctx.font = '500 13px -apple-system, system-ui, sans-serif';
       ctx.fillStyle = '#8A8A85';
