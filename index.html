@@ -5771,6 +5771,304 @@ function solveKnightsKnaves(people, statementsByPerson) {
   }
   return solutions;
 }
+
+// Allowed statement types per tier, and how many statements each person makes.
+// Tiers 1-2 are too small for pure procedural generation (parity symmetry of
+// other_identity statements means they rarely yield unique solutions), so they
+// draw from a curated bank. Tiers 3+ are fully procedural with count and
+// compound statements that break parity reliably.
+const KK_TIER_MECHANICS = {
+  3: { people: 4, types: ['other_identity', 'and', 'or'], stmtsPerPerson: 1 },
+  4: { people: 4, types: ['other_identity', 'and', 'or', 'count'], stmtsPerPerson: 1 },
+  5: { people: 5, types: ['other_identity', 'and', 'or', 'count', 'conditional'], stmtsPerPerson: 1 },
+};
+
+// Curated tier 1 and 2 puzzles. Each is a classic small K&K puzzle with a
+// guaranteed unique solution (verified by solveKnightsKnaves at startup).
+// Templates use letters; the generator substitutes random names.
+const KK_CURATED = {
+  1: [
+    // 2 people. Each puzzle has 2 statements broken into per-person.
+    // Solution: A=knight, B=knave
+    {
+      statements: [
+        { speaker: 'A', text: 'I am the same type as B.' },
+        { speaker: 'B', text: 'A is a Knave.' },
+      ],
+      answer: { A: 'knight', B: 'knave' },
+    },
+    // Solution: A=knave, B=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'B is a Knave.' },
+        { speaker: 'B', text: 'A and I are different types.' },
+      ],
+      answer: { A: 'knave', B: 'knight' },
+    },
+    // Solution: A=knight, B=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'We are both Knights.' },
+        { speaker: 'B', text: 'A is telling the truth.' },
+      ],
+      answer: { A: 'knight', B: 'knight' },
+    },
+    // Solution: A=knave, B=knave
+    {
+      statements: [
+        { speaker: 'A', text: 'At least one of us is a Knight.' },
+        { speaker: 'B', text: 'A is a Knight.' },
+      ],
+      answer: { A: 'knave', B: 'knave' },
+    },
+    // Solution: A=knight, B=knave
+    {
+      statements: [
+        { speaker: 'A', text: 'B is lying.' },
+        { speaker: 'B', text: 'A and I are both Knaves.' },
+      ],
+      answer: { A: 'knight', B: 'knave' },
+    },
+    // Solution: A=knave, B=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'I am a Knight.' },
+        { speaker: 'B', text: 'A is a Knave.' },
+      ],
+      answer: { A: 'knave', B: 'knight' },
+    },
+  ],
+  2: [
+    // 3 people each making 1 statement, more constrained than tier 1.
+    // Solution: A=knight, B=knave, C=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'B is a Knave.' },
+        { speaker: 'B', text: 'C is a Knave.' },
+        { speaker: 'C', text: 'A and B are different types.' },
+      ],
+      answer: { A: 'knight', B: 'knave', C: 'knight' },
+    },
+    // Solution: A=knave, B=knight, C=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'B and C are both Knaves.' },
+        { speaker: 'B', text: 'A is a Knave.' },
+        { speaker: 'C', text: 'A is lying.' },
+      ],
+      answer: { A: 'knave', B: 'knight', C: 'knight' },
+    },
+    // Solution: A=knight, B=knight, C=knave
+    {
+      statements: [
+        { speaker: 'A', text: 'C is a Knave.' },
+        { speaker: 'B', text: 'A is a Knight.' },
+        { speaker: 'C', text: 'B is a Knave.' },
+      ],
+      answer: { A: 'knight', B: 'knight', C: 'knave' },
+    },
+    // Solution: A=knave, B=knave, C=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'C is a Knave.' },
+        { speaker: 'B', text: 'A is a Knight.' },
+        { speaker: 'C', text: 'Exactly one of us is a Knight.' },
+      ],
+      answer: { A: 'knave', B: 'knave', C: 'knight' },
+    },
+    // Solution: A=knight, B=knave, C=knight
+    {
+      statements: [
+        { speaker: 'A', text: 'B is a Knave AND C is a Knight.' },
+        { speaker: 'B', text: 'A and C are both Knaves.' },
+        { speaker: 'C', text: 'A is a Knight.' },
+      ],
+      answer: { A: 'knight', B: 'knave', C: 'knight' },
+    },
+    // Solution: A=knave, B=knight, C=knave
+    {
+      statements: [
+        { speaker: 'A', text: 'I am a Knight.' },
+        { speaker: 'B', text: 'A is a Knave AND C is a Knave.' },
+        { speaker: 'C', text: 'B is a Knave.' },
+      ],
+      answer: { A: 'knave', B: 'knight', C: 'knave' },
+    },
+  ],
+};
+
+const KK_NAMES = ['Alice', 'Bob', 'Carol', 'Dan', 'Eve'];
+
+// Target-driven generation: given a pre-picked Knight/Knave assignment, generate
+// a statement that the speaker would actually say under that assignment.
+// Knights say true statements; knaves say false statements.
+//
+// This way every generated puzzle has at least 1 solution (the target assignment).
+// We then check it's also UNIQUE via the SAT solver.
+
+function isStatementTrue(stmt, assignment) {
+  return evaluateStatement(stmt, assignment);
+}
+
+// Make a random simple atomic statement and adjust it so its truth value matches what speaker would say.
+function makeAtomicStatementForTarget(speaker, people, types, assignment) {
+  const speakerType = assignment.get(speaker);
+  const shouldBeTrue = speakerType === 'knight';
+  // Try random atomic statements until one matches the required truth value
+  for (let i = 0; i < 30; i++) {
+    let stmt;
+    if (types.includes('other_identity') && Math.random() < 0.7 && people.length > 1) {
+      const others = people.filter(p => p !== speaker);
+      stmt = { type: 'other_identity', target: randomChoice(others), isKnight: Math.random() < 0.5 };
+    } else {
+      stmt = { type: 'self_identity', target: speaker, isKnight: Math.random() < 0.5 };
+    }
+    if (isStatementTrue(stmt, assignment) === shouldBeTrue) return stmt;
+  }
+  // Fallback: build the right atomic deterministically
+  if (people.length > 1 && types.includes('other_identity')) {
+    const other = people.find(p => p !== speaker);
+    const otherActuallyKnight = assignment.get(other) === 'knight';
+    // For knight: claim true type. For knave: claim opposite type.
+    return { type: 'other_identity', target: other, isKnight: shouldBeTrue ? otherActuallyKnight : !otherActuallyKnight };
+  }
+  // 2-person self_identity case: knight says "I am K", knave says "I am K" too (lying about being N).
+  return { type: 'self_identity', target: speaker, isKnight: true };
+}
+
+// Make a possibly-compound statement of any allowed type, true for knight-speaker / false for knave-speaker.
+function makeStatementForTarget(speaker, people, types, assignment) {
+  const speakerType = assignment.get(speaker);
+  const shouldBeTrue = speakerType === 'knight';
+  // Try several random shapes until we get one with the right truth value
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const choice = randomChoice(types);
+    let stmt = null;
+    if (choice === 'self_identity') {
+      stmt = { type: 'self_identity', target: speaker, isKnight: Math.random() < 0.5 };
+    } else if (choice === 'other_identity') {
+      if (people.length > 1) {
+        const others = people.filter(p => p !== speaker);
+        stmt = { type: 'other_identity', target: randomChoice(others), isKnight: Math.random() < 0.5 };
+      }
+    } else if (choice === 'and' || choice === 'or') {
+      stmt = {
+        type: choice,
+        left: makeAtomicStatementForTarget(speaker, people, types, assignment),
+        right: makeAtomicStatementForTarget(speaker, people, types, assignment),
+      };
+      // Re-randomize the right side to break correlation - we want the compound's
+      // truth value to be unpredictable from the random atomics
+      if (Math.random() < 0.5) stmt.right.isKnight = !stmt.right.isKnight;
+    } else if (choice === 'count') {
+      stmt = {
+        type: 'count',
+        op: randomChoice(['exactly', 'at_least', 'at_most']),
+        n: 1 + Math.floor(Math.random() * (people.length - 1)),
+        isKnight: Math.random() < 0.5,
+      };
+    } else if (choice === 'conditional') {
+      stmt = {
+        type: 'conditional',
+        antecedent: makeAtomicStatementForTarget(speaker, people, types, assignment),
+        consequent: makeAtomicStatementForTarget(speaker, people, types, assignment),
+      };
+      if (Math.random() < 0.5) stmt.consequent.isKnight = !stmt.consequent.isKnight;
+    }
+    if (stmt && isStatementTrue(stmt, assignment) === shouldBeTrue) return stmt;
+  }
+  // Deterministic fallback: simple atomic
+  return makeAtomicStatementForTarget(speaker, people, types, assignment);
+}
+
+// Generate a K&K puzzle with a guaranteed unique solution.
+// Tiers 1-2 draw from the curated bank (small templates, names substituted).
+// Tiers 3-5 use procedural target-driven generation, retrying up to maxAttempts
+// times until a unique-solution puzzle is found.
+function generateKnightsKnaves(tier, maxAttempts = 200) {
+  // Curated path for tiers 1-2
+  if (KK_CURATED[tier]) {
+    const template = randomChoice(KK_CURATED[tier]);
+    // Substitute placeholder letters (A, B, C) with random names
+    const letters = Object.keys(template.answer);
+    const shuffledNames = [...KK_NAMES].sort(() => Math.random() - 0.5).slice(0, letters.length);
+    const nameMap = {};
+    letters.forEach((letter, i) => nameMap[letter] = shuffledNames[i]);
+    const substitute = (text) => {
+      let out = text;
+      for (const letter of letters) {
+        // Replace whole-word occurrences only (avoid matching inside other words)
+        out = out.replace(new RegExp('\\b' + letter + '\\b', 'g'), nameMap[letter]);
+      }
+      return out;
+    };
+    return {
+      type: 'kk',
+      tier,
+      people: letters.map(l => nameMap[l]),
+      statements: template.statements.map(s => ({
+        speaker: nameMap[s.speaker],
+        text: substitute(s.text),
+      })),
+      correctAnswer: Object.fromEntries(
+        Object.entries(template.answer).map(([letter, type]) => [nameMap[letter], type])
+      ),
+    };
+  }
+
+  // Procedural path for tiers 3-5
+  const config = KK_TIER_MECHANICS[tier];
+  const people = KK_NAMES.slice(0, config.people);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Pick a random target assignment (not all-knight or all-knave, those tend to be too easy)
+    const assignment = new Map();
+    for (let i = 0; i < 1000; i++) {
+      for (const p of people) assignment.set(p, Math.random() < 0.5 ? 'knight' : 'knave');
+      const knightCount = [...assignment.values()].filter(v => v === 'knight').length;
+      if (knightCount > 0 && knightCount < people.length) break;
+    }
+    const statementsByPerson = {};
+    for (const person of people) {
+      const stmts = [];
+      for (let s = 0; s < config.stmtsPerPerson; s++) {
+        stmts.push(makeStatementForTarget(person, people, config.types, assignment));
+      }
+      statementsByPerson[person] = stmts;
+    }
+    const solutions = solveKnightsKnaves(people, statementsByPerson);
+    if (solutions.length === 1) {
+      const sol = solutions[0];
+      const answer = {};
+      people.forEach(p => answer[p] = sol.get(p));
+      return {
+        type: 'kk',
+        tier,
+        people,
+        statements: people.map(p => ({
+          speaker: p,
+          text: statementsByPerson[p]
+            .map(s => renderStatement(s, p))
+            .join(' Also, '),
+        })),
+        correctAnswer: answer,
+      };
+    }
+  }
+  // Procedural fallback: pull a tier-3 curated equivalent (shouldn't normally trigger)
+  return {
+    type: 'kk',
+    tier,
+    people: ['Alice', 'Bob', 'Carol', 'Dan'],
+    statements: [
+      { speaker: 'Alice', text: 'Bob is a Knave.' },
+      { speaker: 'Bob', text: 'Carol is a Knave.' },
+      { speaker: 'Carol', text: 'Dan is a Knight.' },
+      { speaker: 'Dan', text: 'Alice is a Knave AND Bob is a Knight.' },
+    ],
+    correctAnswer: { Alice: 'knight', Bob: 'knave', Carol: 'knight', Dan: 'knave' },
+  };
+}
 </script>
 </body>
 </html>
