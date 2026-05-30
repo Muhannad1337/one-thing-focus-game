@@ -757,6 +757,64 @@
     font-weight: 600;
     cursor: pointer;
   }
+
+  .kk-people {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .kk-person-card {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .kk-person-name {
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .kk-person-statement {
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+  .kk-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .kk-toggle button {
+    min-height: 48px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .kk-toggle button.selected {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .kk-submit {
+    display: block;
+    margin: 20px auto 0;
+    min-height: 48px;
+    padding: 12px 32px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .kk-submit:disabled { opacity: 0.5; cursor: default; }
 </style>
 </head>
 <body>
@@ -6068,6 +6126,108 @@ function generateKnightsKnaves(tier, maxAttempts = 200) {
     ],
     correctAnswer: { Alice: 'knight', Bob: 'knave', Carol: 'knight', Dan: 'knave' },
   };
+}
+
+// Renders a K&K puzzle. onAnswer({Alice:'knight', Bob:'knave', ...}, card) is called on submit.
+function renderKKUI(puzzle, stage, onAnswer) {
+  stage.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'puzzle-card';
+
+  const intro = document.createElement('div');
+  intro.className = 'puzzle-premise';
+  intro.textContent = 'On this island, Knights always tell the truth, Knaves always lie. Figure out who is what.';
+  card.appendChild(intro);
+
+  const selection = {};
+  const peopleDiv = document.createElement('div');
+  peopleDiv.className = 'kk-people';
+
+  // Group statements by speaker (some puzzles have multiple statements per person)
+  const statementsBySpeaker = {};
+  puzzle.statements.forEach(({ speaker, text }) => {
+    if (!statementsBySpeaker[speaker]) statementsBySpeaker[speaker] = [];
+    statementsBySpeaker[speaker].push(text);
+  });
+
+  let submitBtn;
+
+  puzzle.people.forEach(speaker => {
+    const stmts = statementsBySpeaker[speaker] || [];
+    const personCard = document.createElement('div');
+    personCard.className = 'kk-person-card';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'kk-person-name';
+    nameDiv.textContent = speaker + ' says:';
+    personCard.appendChild(nameDiv);
+
+    stmts.forEach(text => {
+      const stmtDiv = document.createElement('div');
+      stmtDiv.className = 'kk-person-statement';
+      stmtDiv.textContent = '"' + text + '"';
+      personCard.appendChild(stmtDiv);
+    });
+
+    const toggle = document.createElement('div');
+    toggle.className = 'kk-toggle';
+    const kBtn = document.createElement('button');
+    kBtn.textContent = 'Knight';
+    const nBtn = document.createElement('button');
+    nBtn.textContent = 'Knave';
+    kBtn.addEventListener('click', () => {
+      selection[speaker] = 'knight';
+      kBtn.classList.add('selected');
+      nBtn.classList.remove('selected');
+      submitBtn.disabled = puzzle.people.some(p => !selection[p]);
+    });
+    nBtn.addEventListener('click', () => {
+      selection[speaker] = 'knave';
+      nBtn.classList.add('selected');
+      kBtn.classList.remove('selected');
+      submitBtn.disabled = puzzle.people.some(p => !selection[p]);
+    });
+    toggle.appendChild(kBtn);
+    toggle.appendChild(nBtn);
+    personCard.appendChild(toggle);
+    peopleDiv.appendChild(personCard);
+  });
+
+  card.appendChild(peopleDiv);
+
+  submitBtn = document.createElement('button');
+  submitBtn.className = 'kk-submit';
+  submitBtn.textContent = 'Submit';
+  submitBtn.disabled = true;
+  submitBtn.addEventListener('click', () => {
+    Array.from(card.querySelectorAll('button')).forEach(b => b.disabled = true);
+    onAnswer(selection, card);
+  });
+  card.appendChild(submitBtn);
+
+  stage.appendChild(card);
+}
+
+// Feedback after K&K submission.
+function showKKFeedback(puzzle, userAnswer, container, onNext) {
+  const correct = puzzle.people.every(p => userAnswer[p] === puzzle.correctAnswer[p]);
+  const fb = document.createElement('div');
+  fb.className = 'puzzle-feedback ' + (correct ? 'correct' : 'incorrect');
+  if (correct) {
+    fb.textContent = 'Correct.';
+  } else {
+    const answerStr = puzzle.people
+      .map(p => `${p}: ${puzzle.correctAnswer[p] === 'knight' ? 'Knight' : 'Knave'}`)
+      .join(', ');
+    fb.textContent = 'Not quite. Correct answer: ' + answerStr + '.';
+  }
+  container.appendChild(fb);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = 'Next puzzle';
+  nextBtn.addEventListener('click', onNext);
+  container.appendChild(nextBtn);
 }
 </script>
 </body>
