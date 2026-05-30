@@ -200,6 +200,82 @@
   }
   .modal h2 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
   .modal .modal-sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+  .modal.modal-wide { max-width: 720px; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .modal-head h2 { margin: 0; }
+  .modal-x { color: var(--muted); font-size: 20px; padding: 4px 10px; border-radius: 6px; }
+  .modal-x:hover { background: var(--bg); color: var(--ink); }
+
+  /* Settings sheet */
+  .settings-list { display: flex; flex-direction: column; gap: 10px; }
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px;
+    font-size: 14px;
+  }
+  .setting-row input[type="checkbox"] {
+    width: 38px; height: 22px; appearance: none; -webkit-appearance: none;
+    background: var(--line); border-radius: 999px; position: relative;
+    cursor: pointer; transition: background .15s;
+  }
+  .setting-row input[type="checkbox"]::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: white; transition: left .15s;
+  }
+  .setting-row input[type="checkbox"]:checked { background: var(--good); }
+  .setting-row input[type="checkbox"]:checked::after { left: 18px; }
+  .seg { display: inline-flex; background: var(--line); border-radius: 8px; padding: 2px; }
+  .seg-btn {
+    padding: 6px 14px; font-size: 13px; font-weight: 600;
+    color: var(--muted); border-radius: 6px;
+  }
+  .seg-btn.is-active { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .setting-danger {
+    text-align: left; padding: 12px 16px;
+    background: #FBF0EE; color: var(--bad);
+    border: 1px solid var(--bad); border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+  }
+  .setting-danger:hover { background: var(--bad); color: white; }
+
+  /* Stats sheet */
+  #statsCalendar {
+    display: grid; grid-template-columns: repeat(12, 1fr);
+    gap: 3px; margin: 12px 0 22px;
+    padding: 14px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+  .stats-cell {
+    aspect-ratio: 1; border-radius: 3px; background: var(--line);
+    transition: transform .1s;
+  }
+  .stats-cell:hover { transform: scale(1.4); }
+  .stats-cell.l1 { background: rgba(91, 124, 250, 0.25); }
+  .stats-cell.l2 { background: rgba(91, 124, 250, 0.55); }
+  .stats-cell.l3 { background: rgba(91, 124, 250, 0.80); }
+  .stats-cell.l4 { background: rgba(91, 124, 250, 1.00); }
+  #statsGames { display: flex; flex-direction: column; gap: 14px; }
+  .stats-game {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stats-game-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .stats-game-name { font-weight: 700; font-size: 15px; }
+  .stats-game-meta { color: var(--muted); font-size: 12px; }
+  .stats-spark { display: block; width: 100%; height: 36px; }
+  .stats-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; margin-top: 10px; font-size: 11px; }
+  .stats-level { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; text-align: center; }
+  .stats-level .num { display: block; font-weight: 700; font-size: 14px; color: var(--ink); }
+  .stats-level.locked { opacity: 0.4; }
+
+  /* Reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .stage-flash-good::after, .stage-flash-bad::after { animation: none; }
+    .practice-bubble { animation-duration: 0.5s; }
+    .schulte-shake { animation: none; }
+  }
   .modal p { margin: 0 0 14px; }
   .modal ul { margin: 0 0 14px; padding-left: 20px; }
   .modal ul li { margin-bottom: 6px; }
@@ -555,17 +631,66 @@
   <div class="header">
     <h1>Focus Games</h1>
   </div>
-  <p class="home-tagline">Five focus-training games rooted in attention-science research. Each with its own level progression. Pick one and practice single-tasking — on phone or web.</p>
+  <p class="home-tagline">Eight focus-training games rooted in attention-science research. Each with its own level progression. Pick one and practice single-tasking — on phone or web.</p>
 
   <div class="meta">
     <div>Streak: <span class="num" id="homeStreak">0</span> days</div>
     <div>Total sessions: <span class="num" id="homeTotalSessions">0</span></div>
     <button class="audio-toggle" id="homeAudioToggle">Audio: off</button>
+    <button class="audio-toggle" id="homeStatsBtn" aria-label="Open stats">Stats</button>
+    <button class="audio-toggle" id="homeSettingsBtn" aria-label="Open settings">⚙ Settings</button>
   </div>
 
   <div class="games-grid" id="gamesGrid"></div>
 
   <p class="footer-note">All progress is stored locally on this device. No accounts, no analytics.</p>
+</div>
+
+<!-- STATS SHEET -->
+<div class="modal-bg" id="statsModal">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h2>Your stats</h2>
+      <button class="modal-x" id="statsClose" aria-label="Close">✕</button>
+    </div>
+    <p class="modal-sub" id="statsSummary"></p>
+    <div id="statsCalendar"></div>
+    <div id="statsGames"></div>
+    <div class="actions">
+      <button class="secondary" id="statsClose2">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="modal-x" id="settingsClose" aria-label="Close">✕</button>
+    </div>
+    <div class="settings-list">
+      <label class="setting-row"><span>Audio (hit / miss / feedback tones)</span><input type="checkbox" id="setAudio"></label>
+      <label class="setting-row"><span>Haptics (vibrate on touch devices)</span><input type="checkbox" id="setHaptics"></label>
+      <label class="setting-row"><span>Reduce motion (disable flashes, pulses)</span><input type="checkbox" id="setReducedMotion"></label>
+      <div class="setting-row">
+        <span>Text size</span>
+        <div class="seg" role="radiogroup" aria-label="Text size">
+          <button class="seg-btn" data-scale="0.9">S</button>
+          <button class="seg-btn is-active" data-scale="1">M</button>
+          <button class="seg-btn" data-scale="1.15">L</button>
+        </div>
+      </div>
+    </div>
+    <p class="modal-sub" style="margin-top:18px">Danger zone</p>
+    <div class="settings-list">
+      <button class="setting-danger" id="resetCurrent">Reset progress for one game…</button>
+      <button class="setting-danger" id="resetAll">Reset ALL progress</button>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="settingsClose2">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- MENU (per-game level list) -->
@@ -665,6 +790,9 @@ const DEFAULT_STATE = {
   streak: 0,             // consecutive-day streak (global)
   lastPlayedDay: null,   // YYYY-MM-DD
   audioEnabled: false,
+  hapticsEnabled: true,  // touch vibration on hit/miss
+  reducedMotion: false,  // disables stage flashes & breath circle pulses
+  typeScale: 1,          // 0.9 / 1 / 1.15
 };
 
 let STATE = loadState();
@@ -4459,6 +4587,565 @@ function makeNbackCore(opts) {
     },
   };
 }
+
+// ==========================================================================
+// GAME 6 — BOX BREATH (mindful breathing pacer)
+// ==========================================================================
+// 5 progressively-longer sessions of 4-4-4-4 box breathing. The only paradigm
+// in the set whose evidence for real-world transfer is strong (Levinson 2014;
+// breath counting as a behavioural mindfulness measure).
+
+GAME_META.boxBreath = {
+  1: { name: '1 Minute', paradigm: 'Box Breathing', short: 'Inhale 4 · Hold 4 · Exhale 4 · Hold 4. One minute.', rule: 'Follow the box · <strong>inhale → hold → exhale → hold</strong> · 4s each', duration: 64, accent: '#6BA89E', science: { description: 'Box breathing (sama vritti) trains attention by anchoring it to a steady rhythm. Even a single minute reduces stress arousal markers in lab studies. This is the warm-up.', citation: 'Levinson, Stoll, Kindy, Merry & Davidson (2014). A mind you can count on: Validating breath counting as a behavioural measure of mindfulness.' }, tutorialBody: `<p>The square breathes for you.</p><ul><li>Follow the moving dot around the box.</li><li>Inhale on the rising edge, hold at the top, exhale on the falling edge, hold at the bottom.</li><li>Each side is 4 seconds. No keys to press — just breathe.</li></ul>`, cycles: 4 },
+  2: { name: '2 Minutes', paradigm: 'Box Breathing', short: 'Same rhythm, twice as long.', rule: 'Follow the box · 4-4-4-4 · two minutes', duration: 128, accent: '#6BA89E', science: { description: 'Two minutes is enough to shift parasympathetic tone in trained breathers. The novel challenge here is sustained focus through 8 cycles without drifting.', citation: 'Russo, Santarelli & O\'Rourke (2017). The physiological effects of slow breathing in the healthy human.' }, tutorialBody: `<p>Two minutes. Eight cycles.</p><ul><li>Same rhythm as Level 1, longer duration.</li><li>If your mind wanders, notice it and return to the box.</li></ul>`, cycles: 8 },
+  3: { name: '3 Minutes', paradigm: 'Box Breathing', short: 'Three minutes — the standard mindful unit.', rule: 'Follow the box · 4-4-4-4 · three minutes', duration: 192, accent: '#6BA89E', science: { description: 'Three-minute breath-counting blocks are the unit used in much mindfulness-research lab protocols. Long enough for measurable effects, short enough to stay engaged.', citation: 'Wong, Massey-Abernathy & Patrick (2018). Mindfulness via breath counting: a brief lab intervention.' }, tutorialBody: `<p>Three minutes · twelve cycles.</p><ul><li>Same rhythm.</li><li>Score reflects how steady you stayed.</li></ul>`, cycles: 12 },
+  4: { name: '4 Minutes', paradigm: 'Box Breathing', short: 'Four minutes. Pull deeper focus.', rule: 'Follow the box · 4-4-4-4 · four minutes', duration: 256, accent: '#6BA89E', science: { description: 'Past three minutes, attention naturally fluctuates. This length probes your vigilance to the breath rhythm itself.', citation: 'Brewer et al. (2011). Meditation experience is associated with differences in default mode network activity.' }, tutorialBody: `<p>Four minutes · sixteen cycles.</p><ul><li>Same rhythm.</li><li>Aim for steady.</li></ul>`, cycles: 16 },
+  5: { name: '5 Minutes', paradigm: 'Box Breathing', short: 'Five minutes. The hardest by far — for the breath, not the body.', rule: 'Follow the box · 4-4-4-4 · five minutes', duration: 320, accent: '#6BA89E', science: { description: 'Five minutes is the lower end of "meaningful" meditation block lengths in clinical mindfulness research. If you can do this daily, you have a focus practice.', citation: 'Zeidan, Johnson, Diamond, David & Goolkasian (2010). Mindfulness meditation improves cognition.' }, tutorialBody: `<p>Five minutes · twenty cycles.</p><ul><li>The pace doesn't change. Your steadiness will.</li></ul>`, cycles: 20 },
+};
+
+function makeBoxBreathLevel(id) {
+  const meta = GAME_META.boxBreath[id];
+  const PHASE_MS = 4000;
+  const CYCLE_MS = PHASE_MS * 4;
+  let env_;
+  let startedAt = 0;
+  const cssVar = name => (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
+  return {
+    id, tapMode: 'none',
+    init(env) { env_ = env; startedAt = performance.now(); env.hint(''); },
+    tick(now) {
+      const elapsed = now - startedAt;
+      const phaseIdx = Math.floor((elapsed % CYCLE_MS) / PHASE_MS);
+      const phaseProgress = ((elapsed % CYCLE_MS) % PHASE_MS) / PHASE_MS;
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      const size = Math.min(w * 0.8, h * 0.55);
+      const cx = w / 2;
+      const cy = (typeof centerY === 'function' ? centerY(h) : h / 2);
+      const x0 = cx - size / 2, y0 = cy - size / 2;
+      ctx.strokeStyle = cssVar('--line-strong') || '#CBCAC2';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.rect(x0, y0, size, size); ctx.stroke();
+      ctx.fillStyle = cssVar('--muted') || '#6A6A65';
+      ctx.font = `500 13px ${cssVar('--font-body') || 'system-ui'}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('Inhale', cx, y0 - 14);
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      ctx.fillText('Hold', x0 + size + 14, cy);
+      ctx.textBaseline = 'top'; ctx.textAlign = 'center';
+      ctx.fillText('Exhale', cx, y0 + size + 14);
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
+      ctx.fillText('Hold', x0 - 14, cy);
+      let dx, dy;
+      if (phaseIdx === 0) { dx = x0 + size * phaseProgress; dy = y0; }
+      else if (phaseIdx === 1) { dx = x0 + size; dy = y0 + size * phaseProgress; }
+      else if (phaseIdx === 2) { dx = x0 + size * (1 - phaseProgress); dy = y0 + size; }
+      else { dx = x0; dy = y0 + size * (1 - phaseProgress); }
+      ctx.strokeStyle = meta.accent;
+      ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      if (phaseIdx === 0) { ctx.moveTo(x0, y0); ctx.lineTo(dx, y0); }
+      else if (phaseIdx === 1) { ctx.moveTo(x0 + size, y0); ctx.lineTo(x0 + size, dy); }
+      else if (phaseIdx === 2) { ctx.moveTo(x0 + size, y0 + size); ctx.lineTo(dx, y0 + size); }
+      else { ctx.moveTo(x0, y0 + size); ctx.lineTo(x0, dy); }
+      ctx.stroke();
+      ctx.fillStyle = meta.accent;
+      ctx.beginPath(); ctx.arc(dx, dy, 12, 0, Math.PI * 2); ctx.fill();
+      const names = ['INHALE', 'HOLD', 'EXHALE', 'HOLD'];
+      ctx.fillStyle = cssVar('--ink') || '#1F1F1F';
+      ctx.font = `600 24px ${cssVar('--font-display') || cssVar('--font-body') || 'system-ui'}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(names[phaseIdx], cx, cy);
+      ctx.font = `500 12px ${cssVar('--font-body') || 'system-ui'}`;
+      ctx.fillStyle = cssVar('--muted') || '#6A6A65';
+      const cyclesDone = Math.floor(elapsed / CYCLE_MS);
+      ctx.fillText(`Cycle ${Math.min(cyclesDone + 1, meta.cycles)} of ${meta.cycles}`, cx, y0 + size + 38);
+    },
+    handleKey() {},
+    finish() {
+      const cyclesActual = Math.floor((performance.now() - startedAt) / CYCLE_MS);
+      const completionRatio = Math.min(1, cyclesActual / meta.cycles);
+      const score = 1000 * (1 - completionRatio);
+      return {
+        score, accuracy: completionRatio,
+        metrics: [
+          { label: 'Cycles', value: `${cyclesActual}/${meta.cycles}` },
+          { label: 'Duration', value: `${Math.round((performance.now() - startedAt) / 1000)}s` },
+          { label: 'Rhythm', value: '4·4·4·4' },
+          { label: 'Completion', value: `${Math.round(completionRatio * 100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// GAME 7 — DIGIT SPAN (working memory)
+// ==========================================================================
+
+GAME_META.span = {
+  1: { name: 'Span 4 Forward', paradigm: 'Forward Digit Span', short: 'Tap back the sequence of 4 digits in the order shown.', rule: 'Watch · then tap back in <strong>order</strong>', duration: 120, accent: '#C97B5B', science: { description: 'Forward digit span is the classic Wechsler test of phonological-loop working memory. Average healthy adult span is 7±2; this level starts gentle.', citation: 'Wechsler (1939). Measurement of adult intelligence (Digit Span subtest).' }, tutorialBody: `<p>Each trial: 4 digits flash one at a time. Then a keypad appears.</p><ul><li>Tap the digits <strong>in the order you saw them</strong>.</li><li>Speed counts a little. Accuracy counts more.</li></ul>`, spanLength: 4, reverse: false },
+  2: { name: 'Span 5 Forward', paradigm: 'Forward Digit Span', short: '5 digits. Slightly longer to hold in mind.', rule: '5 digits in order', duration: 120, accent: '#C97B5B', science: { description: 'Five-item lists begin to stress the phonological loop, especially without grouping strategies.', citation: 'Baddeley (2000). The episodic buffer: a new component of working memory?' }, tutorialBody: `<p>5 digits forward.</p><ul><li>Same rule — order matters.</li></ul>`, spanLength: 5, reverse: false },
+  3: { name: 'Span 4 Backward', paradigm: 'Backward Digit Span', short: 'Now tap them in REVERSE order. Last digit first.', rule: 'Watch · then tap back in <strong>reverse</strong>', duration: 150, accent: '#C97B5B', science: { description: 'Backward span is a much stronger test of executive control. Adult average is ~5; correlates more strongly with fluid intelligence.', citation: "Conway et al. (2005). Working memory span tasks: A methodological review and user's guide." }, tutorialBody: `<p>4 digits. <strong>Tap them in REVERSE</strong>.</p><ul><li>Last digit shown → first to tap.</li><li>Visualise the digits laid out, then read right-to-left.</li></ul>`, spanLength: 4, reverse: true },
+  4: { name: 'Span 6 Forward', paradigm: 'Forward Digit Span', short: "6 digits forward. Above average means you're good at chunking.", rule: '6 digits in order', duration: 150, accent: '#C97B5B', science: { description: 'Six-digit spans require chunking strategies (3-3 groupings).', citation: 'Miller (1956). The magical number seven, plus or minus two.' }, tutorialBody: `<p>6 digits forward.</p><ul><li>Try chunking: group as 3-3.</li></ul>`, spanLength: 6, reverse: false },
+  5: { name: 'Span 5 Backward', paradigm: 'Backward Digit Span', short: '5 digits, reverse order. The clinically-meaningful threshold.', rule: '5 digits in <strong>reverse</strong>', duration: 180, accent: '#C97B5B', science: { description: 'Reaching backward span 5 is the cutoff often used in clinical assessments.', citation: 'Engle (2002). Working memory capacity as executive attention.' }, tutorialBody: `<p>5 digits, reverse.</p><ul><li>Last → first.</li><li>Mental rehearsal helps.</li></ul>`, spanLength: 5, reverse: true },
+};
+
+function makeSpanLevel(id) {
+  const meta = GAME_META.span[id];
+  const SHOW_MS = 600;
+  const ISI_MS = 250;
+  let env_;
+  let phase = 'show';
+  let currentTrial = [];
+  let userInput = [];
+  let trialIdx = 0;
+  let showIdx = 0;
+  let nextShowAt = 0;
+  let stats = { trials: 0, correct: 0, partials: 0, rts: [], trialStart: 0 };
+  const cssVar = name => (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
+  function newTrial(now) {
+    currentTrial = [];
+    for (let i = 0; i < meta.spanLength; i++) currentTrial.push(Math.floor(Math.random() * 10));
+    userInput = [];
+    showIdx = 0;
+    nextShowAt = now + 400;
+    phase = 'show';
+    stats.trialStart = now;
+    if (env_ && env_.overlay) env_.overlay.innerHTML = '';
+  }
+  function buildKeypad() {
+    const overlay = env_.overlay;
+    overlay.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:min(280px,80vw);pointer-events:auto;">
+        ${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k => {
+          const isAct = k === '⌫' || k === '✓';
+          return `<button data-key="${k}" class="span-key" style="padding:18px 0;font-size:22px;font-weight:600;background:${isAct ? 'var(--bg)' : 'var(--panel)'};color:var(--ink);border:1px solid var(--line-strong);border-radius:12px;font-family:${cssVar('--font-body') || 'system-ui'};cursor:pointer;-webkit-tap-highlight-color:transparent;">${k}</button>`;
+        }).join('')}
+      </div>
+      <div style="position:absolute;left:0;right:0;text-align:center;color:var(--muted);font-size:13px;margin-top:140px;pointer-events:none;">
+        ${meta.reverse ? 'Tap the digits in REVERSE order' : 'Tap the digits in ORDER'}
+        <div style="margin-top:8px;font-size:18px;color:var(--ink);font-weight:600;letter-spacing:6px;font-variant-numeric:tabular-nums;">${userInput.join('') || '·'.repeat(meta.spanLength)}</div>
+      </div>
+    `;
+    overlay.querySelectorAll('.span-key').forEach(btn => {
+      btn.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const k = btn.dataset.key;
+        if (k === '⌫') userInput.pop();
+        else if (k === '✓') { gradeTrial(); return; }
+        else if (userInput.length < meta.spanLength) userInput.push(parseInt(k, 10));
+        buildKeypad();
+      });
+    });
+  }
+  function expectedAnswer() { return meta.reverse ? [...currentTrial].reverse() : currentTrial; }
+  function gradeTrial() {
+    if (userInput.length < meta.spanLength) return;
+    const expected = expectedAnswer();
+    const fullMatch = userInput.every((v, i) => v === expected[i]);
+    stats.trials++;
+    if (fullMatch) {
+      stats.correct++;
+      audio.good();
+      feedback('good', 'Span recalled!');
+    } else {
+      let p = 0;
+      for (let i = 0; i < userInput.length; i++) { if (userInput[i] === expected[i]) p++; else break; }
+      stats.partials += p / meta.spanLength;
+      audio.bad();
+      feedback('bad', `Was ${expected.join(' ')}`);
+    }
+    stats.rts.push(performance.now() - stats.trialStart);
+    phase = 'feedback';
+    trialIdx++;
+    setTimeout(() => { if (env_) newTrial(performance.now()); }, 1100);
+  }
+  return {
+    id, tapMode: 'none',
+    init(env) { env_ = env; env.hint(''); newTrial(performance.now()); },
+    tick(now) {
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'show') {
+        if (showIdx < currentTrial.length && now >= nextShowAt) {
+          ctx.fillStyle = meta.accent;
+          ctx.font = `600 ${Math.min(180, Math.min(w, h) * 0.34)}px ${cssVar('--font-display') || cssVar('--font-body') || 'system-ui'}`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(currentTrial[showIdx]), w / 2, (typeof centerY === 'function' ? centerY(h) : h / 2));
+          if (now >= nextShowAt + SHOW_MS) {
+            showIdx++;
+            nextShowAt = now + ISI_MS;
+            if (showIdx >= currentTrial.length) { phase = 'recall'; buildKeypad(); }
+          }
+        }
+      }
+      if (phase === 'recall' || phase === 'feedback') {
+        ctx.fillStyle = cssVar('--muted') || '#6A6A65';
+        ctx.font = `500 12px ${cssVar('--font-body') || 'system-ui'}`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(`Trial ${trialIdx + 1}  ·  span ${meta.spanLength}  ·  ${meta.reverse ? 'reverse' : 'forward'}`, w / 2, 20);
+      }
+    },
+    handleKey(e) {
+      if (phase !== 'recall') return;
+      const k = e.key;
+      if (k >= '0' && k <= '9') { if (userInput.length < meta.spanLength) { userInput.push(parseInt(k, 10)); buildKeypad(); } }
+      else if (k === 'Backspace') { userInput.pop(); buildKeypad(); }
+      else if (k === 'Enter') { gradeTrial(); }
+    },
+    finish() {
+      const adj = stats.trials ? (stats.correct + stats.partials) / stats.trials : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((a, b) => a + b, 0) / stats.rts.length : 5000;
+      const score = (1 - adj) * 1000 + Math.max(0, (meanRT - 3000) / 50);
+      return {
+        score, accuracy: adj,
+        metrics: [
+          { label: 'Full recalls', value: `${stats.correct}/${stats.trials}` },
+          { label: 'Partial credit', value: stats.partials.toFixed(1) },
+          { label: 'Mean reaction', value: `${Math.round(meanRT)} ms` },
+          { label: 'Accuracy', value: `${Math.round(adj * 100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// GAME 8 — STOP SIGNAL (motor inhibition)
+// ==========================================================================
+
+GAME_META.stopSignal = {
+  1: { name: 'Easy Stop', paradigm: 'Stop-Signal · long delay', short: 'Tap the arrow. If the tone plays, hold back.', rule: '<span class="keys"><span class="key">←</span><span class="key">→</span></span> for the arrow · <strong>STOP on the tone</strong>', duration: 90, accent: '#7C7DE0', science: { description: 'Classic stop-signal paradigm. Long stop-signal delay (350ms) makes stopping feasible most of the time.', citation: 'Logan & Cowan (1984). On the ability to inhibit thought and action.' }, tutorialBody: `<p>An arrow points left or right. Press the matching key — fast.</p><ul><li>If you hear a high tone before you press, <strong>do NOT press</strong>.</li><li>Going fast helps your score, but stopping cleanly matters more.</li></ul>`, stopProb: 0.30, ssdMs: 350 },
+  2: { name: 'Quicker', paradigm: 'Stop-Signal · faster', short: 'Same rule. Less time to react.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#7C7DE0', science: { description: 'Halving the response window stresses go-RT.', citation: 'Verbruggen & Logan (2008). Response inhibition in the stop-signal paradigm.' }, tutorialBody: `<p>Arrows arrive faster.</p>`, stopProb: 0.30, ssdMs: 280 },
+  3: { name: 'Hard Stop', paradigm: 'Stop-Signal · short delay', short: 'Stop tone plays sooner. Inhibit fast.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#7C7DE0', science: { description: 'Shorter stop-signal delay makes stopping much harder.', citation: 'Aron & Poldrack (2006). Cortical and subcortical contributions to stop signal response inhibition.' }, tutorialBody: `<p>Tone plays sooner — less time to abort.</p>`, stopProb: 0.30, ssdMs: 200 },
+  4: { name: 'Frequent Stops', paradigm: 'Stop-Signal · 50% stops', short: 'Half the trials are stops. Going fast is risky.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#7C7DE0', science: { description: 'When stop trials are 50%, the cost of fast responding rises.', citation: 'Logan, Schachar & Tannock (1997). Impulsivity and inhibitory control.' }, tutorialBody: `<p>Half the trials will be stops. Don't over-anticipate.</p>`, stopProb: 0.50, ssdMs: 280 },
+  5: { name: 'Adaptive', paradigm: 'Stop-Signal · staircase', short: 'The tone shifts to keep you near 50% stop success.', rule: 'Press arrow direction · STOP on the tone · adaptive', duration: 120, accent: '#7C7DE0', science: { description: 'Adaptive SSD (correct stop → +25ms; failed → −25ms) targets 50% inhibition — the canonical SSRT-estimation protocol.', citation: 'Verbruggen et al. (2019). A consensus guide to capturing the ability to inhibit actions with the stop signal task.' }, tutorialBody: `<p>The tone adapts to keep stops at 50% success.</p>`, stopProb: 0.35, ssdMs: 280, adaptive: true },
+};
+
+function makeStopSignalLevel(id) {
+  const meta = GAME_META.stopSignal[id];
+  const TRIAL_MS = 1500;
+  const ISI_MS = 600;
+  let env_;
+  let phase = 'isi';
+  let phaseEnd = 0;
+  let arrowDir = 'left';
+  let isStopTrial = false;
+  let tonePlayedAt = null;
+  let pressedAt = null;
+  let currentSSD = meta.ssdMs;
+  let stats = { goTrials: 0, goCorrect: 0, goWrong: 0, goMissed: 0, stopTrials: 0, stopInhibited: 0, stopFailed: 0, rts: [] };
+  const cssVar = name => (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim();
+  function startTrial(now) {
+    arrowDir = Math.random() < 0.5 ? 'left' : 'right';
+    isStopTrial = Math.random() < meta.stopProb;
+    tonePlayedAt = null;
+    pressedAt = null;
+    phase = 'show';
+    phaseEnd = now + TRIAL_MS;
+  }
+  function recordEndOfTrial() {
+    if (isStopTrial) {
+      stats.stopTrials++;
+      if (pressedAt) {
+        stats.stopFailed++;
+        if (meta.adaptive) currentSSD = Math.max(50, currentSSD - 25);
+      } else {
+        stats.stopInhibited++;
+        if (meta.adaptive) currentSSD = Math.min(800, currentSSD + 25);
+      }
+    } else {
+      stats.goTrials++;
+      if (pressedAt) {
+        stats.goCorrect++;
+        stats.rts.push(pressedAt - (phaseEnd - TRIAL_MS));
+      } else {
+        stats.goMissed++;
+      }
+    }
+  }
+  return {
+    id, tapMode: 'arrows',
+    init(env) { env_ = env; env.hint(''); phase = 'isi'; phaseEnd = performance.now() + 800; },
+    tick(now) {
+      const r = canvas.getBoundingClientRect();
+      const w = r.width, h = r.height;
+      ctx.clearRect(0, 0, w, h);
+      if (phase === 'isi' && now >= phaseEnd) {
+        startTrial(now);
+      } else if (phase === 'show') {
+        if (isStopTrial && tonePlayedAt == null && now - (phaseEnd - TRIAL_MS) >= currentSSD) {
+          tonePlayedAt = now;
+          audio.beep(880, 200, 0.06);
+        }
+        const cy = typeof centerY === 'function' ? centerY(h) : h / 2;
+        ctx.fillStyle = meta.accent;
+        const size = Math.min(160, Math.min(w, h) * 0.28);
+        ctx.beginPath();
+        if (arrowDir === 'right') {
+          ctx.moveTo(w/2 - size/2, cy - size/3);
+          ctx.lineTo(w/2 + size/4, cy - size/3);
+          ctx.lineTo(w/2 + size/4, cy - size/2);
+          ctx.lineTo(w/2 + size/2, cy);
+          ctx.lineTo(w/2 + size/4, cy + size/2);
+          ctx.lineTo(w/2 + size/4, cy + size/3);
+          ctx.lineTo(w/2 - size/2, cy + size/3);
+        } else {
+          ctx.moveTo(w/2 + size/2, cy - size/3);
+          ctx.lineTo(w/2 - size/4, cy - size/3);
+          ctx.lineTo(w/2 - size/4, cy - size/2);
+          ctx.lineTo(w/2 - size/2, cy);
+          ctx.lineTo(w/2 - size/4, cy + size/2);
+          ctx.lineTo(w/2 - size/4, cy + size/3);
+          ctx.lineTo(w/2 + size/2, cy + size/3);
+        }
+        ctx.closePath();
+        ctx.fill();
+        if (tonePlayedAt != null) {
+          const age = (now - tonePlayedAt) / 350;
+          if (age < 1) {
+            ctx.strokeStyle = '#C56A5F';
+            ctx.lineWidth = 4 + 8 * age;
+            ctx.globalAlpha = 1 - age;
+            ctx.beginPath();
+            ctx.arc(w/2, cy, size * 0.75 + age * 60, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+        }
+        if (now >= phaseEnd) {
+          recordEndOfTrial();
+          phase = 'isi';
+          phaseEnd = now + ISI_MS;
+        }
+      }
+      ctx.font = `500 12px ${cssVar('--font-body') || 'system-ui'}`;
+      ctx.fillStyle = cssVar('--muted') || '#6A6A65';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(
+        `Go ${stats.goCorrect}/${stats.goTrials}  ·  Stop ${stats.stopInhibited}/${stats.stopTrials}` +
+        (meta.adaptive ? `  ·  SSD ${currentSSD}ms` : ''),
+        w / 2, 20,
+      );
+    },
+    handleKey(e) {
+      if (phase !== 'show' || pressedAt) return;
+      let pressedDir = null;
+      if (e.code === 'ArrowLeft' || e.key === 'a' || e.key === 'A') pressedDir = 'left';
+      else if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') pressedDir = 'right';
+      if (!pressedDir) return;
+      if (e.preventDefault) e.preventDefault();
+      pressedAt = performance.now();
+      if (!isStopTrial) {
+        if (pressedDir === arrowDir) feedback('good', 'Go');
+        else { stats.goWrong++; feedback('bad', 'Wrong direction'); }
+      } else {
+        feedback('bad', 'Should have stopped');
+      }
+    },
+    finish() {
+      const stopAcc = stats.stopTrials ? stats.stopInhibited / stats.stopTrials : 0;
+      const goAcc = stats.goTrials ? stats.goCorrect / stats.goTrials : 0;
+      const meanRT = stats.rts.length ? stats.rts.reduce((a, b) => a + b, 0) / stats.rts.length : 600;
+      const ssrtEstimate = Math.max(0, meanRT - currentSSD);
+      const accuracy = (goAcc + stopAcc) / 2;
+      const score = meanRT * (1 - accuracy + 0.05) * 3 + stats.goWrong * 25 + stats.stopFailed * 35;
+      return {
+        score, accuracy,
+        metrics: [
+          { label: 'Go correct', value: `${stats.goCorrect}/${stats.goTrials}` },
+          { label: 'Stop success', value: `${stats.stopInhibited}/${stats.stopTrials}` },
+          { label: 'Mean RT', value: `${Math.round(meanRT)} ms` },
+          { label: meta.adaptive ? 'SSRT est · acc' : 'Accuracy', value: meta.adaptive ? `${Math.round(ssrtEstimate)}ms · ${Math.round(accuracy * 100)}%` : `${Math.round(accuracy * 100)}%` },
+        ],
+      };
+    },
+  };
+}
+
+// ==========================================================================
+// SETTINGS + STATS DASHBOARD
+// ==========================================================================
+
+const DEFAULT_SETTINGS = { haptics: true, reducedMotion: false, typeScale: 1 };
+if (!STATE.settings) STATE.settings = { ...DEFAULT_SETTINGS };
+for (const k of Object.keys(DEFAULT_SETTINGS)) {
+  if (STATE.settings[k] === undefined) STATE.settings[k] = DEFAULT_SETTINGS[k];
+}
+function applySettings() {
+  document.documentElement.style.setProperty('--type-scale', STATE.settings.typeScale || 1);
+  document.documentElement.style.fontSize = `${(STATE.settings.typeScale || 1) * 100}%`;
+  document.documentElement.classList.toggle('reduce-motion', !!STATE.settings.reducedMotion);
+}
+applySettings();
+
+// Hook haptics into the existing feedback() pipeline (declared earlier in the
+// engine). On touch devices a short buzz reinforces hits; longer 3-pulse miss.
+function haptic(pattern) {
+  if (!STATE.settings.haptics) return;
+  if (navigator.vibrate) try { navigator.vibrate(pattern); } catch (_) {}
+}
+const _origFeedback = feedback;
+feedback = function(kind, text) {
+  haptic(kind === 'good' ? [12] : [25, 30, 25]);
+  return _origFeedback(kind, text);
+};
+
+function openStats() {
+  renderStats();
+  document.getElementById('statsModal').classList.add('active');
+}
+function closeStats() { document.getElementById('statsModal').classList.remove('active'); }
+function openSettings() {
+  document.getElementById('setAudio').checked = STATE.audioEnabled;
+  document.getElementById('setHaptics').checked = !!STATE.settings.haptics;
+  document.getElementById('setReducedMotion').checked = !!STATE.settings.reducedMotion;
+  document.querySelectorAll('.seg-btn').forEach(b =>
+    b.classList.toggle('is-active', parseFloat(b.dataset.scale) === (STATE.settings.typeScale || 1))
+  );
+  document.getElementById('settingsModal').classList.add('active');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
+
+function renderStats() {
+  let totalSessions = 0;
+  for (const id of GAME_IDS) totalSessions += (STATE.games[id]?.sessions?.length || 0);
+  document.getElementById('statsSummary').textContent =
+    `${totalSessions} sessions across ${GAMES.length} games · streak ${STATE.streak || 0} days`;
+
+  // 12-week activity calendar (84 days, oldest first → most recent last)
+  const cal = document.getElementById('statsCalendar');
+  cal.innerHTML = '';
+  const today = new Date();
+  const dayCounts = {};
+  for (const id of GAME_IDS) {
+    for (const s of (STATE.games[id]?.sessions || [])) {
+      const d = new Date(s.ts);
+      const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+      dayCounts[key] = (dayCounts[key] || 0) + 1;
+    }
+  }
+  for (let i = 83; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    const n = dayCounts[key] || 0;
+    const cell = document.createElement('div');
+    cell.className = 'stats-cell' + (n >= 4 ? ' l4' : n >= 2 ? ' l3' : n >= 1 ? ' l2' : '');
+    cell.title = `${d.toDateString()} — ${n} session${n === 1 ? '' : 's'}`;
+    cal.appendChild(cell);
+  }
+
+  // Per-game cards
+  const root = document.getElementById('statsGames');
+  root.innerHTML = '';
+  for (const game of GAMES) {
+    const gs = STATE.games[game.id] || { sessions: [], unlockedLevel: 1, bestScores: {} };
+    const sessions = gs.sessions || [];
+    const card = document.createElement('div');
+    card.className = 'stats-game';
+    card.innerHTML = `
+      <div class="stats-game-head">
+        <div><span class="stats-game-name" style="color:${game.accent}">${game.name}</span></div>
+        <div class="stats-game-meta">${sessions.length} session${sessions.length === 1 ? '' : 's'} · ${gs.unlockedLevel}/${game.totalLevels} unlocked</div>
+      </div>
+      <canvas class="stats-spark"></canvas>
+      <div class="stats-levels"></div>
+    `;
+    root.appendChild(card);
+    drawSparkline(card.querySelector('.stats-spark'), sessions.slice(-30).map(s => s.score), game.accent);
+    const lvls = card.querySelector('.stats-levels');
+    for (let i = 1; i <= game.totalLevels; i++) {
+      const best = gs.bestScores[i];
+      const locked = i > gs.unlockedLevel;
+      const el = document.createElement('div');
+      el.className = 'stats-level' + (locked ? ' locked' : '');
+      el.innerHTML = `<span class="num">${best != null ? Math.round(best) : '—'}</span>L${i}`;
+      lvls.appendChild(el);
+    }
+  }
+}
+
+function drawSparkline(canvasEl, values, color) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvasEl.getBoundingClientRect();
+  if (rect.width === 0) {
+    // Fallback when canvas hasn't been laid out yet — set explicit size
+    canvasEl.width = 480 * dpr; canvasEl.height = 36 * dpr;
+    canvasEl.style.width = '100%'; canvasEl.style.height = '36px';
+  } else {
+    canvasEl.width = rect.width * dpr;
+    canvasEl.height = rect.height * dpr;
+  }
+  const ctxs = canvasEl.getContext('2d');
+  ctxs.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
+  ctxs.clearRect(0, 0, w, h);
+  if (!values.length) {
+    ctxs.fillStyle = (getComputedStyle(document.documentElement).getPropertyValue('--muted-soft') || '#aaa').trim();
+    ctxs.font = '500 11px system-ui';
+    ctxs.textBaseline = 'middle';
+    ctxs.fillText('no sessions yet', 0, h / 2);
+    return;
+  }
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const span = (hi - lo) || 1;
+  ctxs.strokeStyle = color;
+  ctxs.lineWidth = 2;
+  ctxs.beginPath();
+  values.forEach((v, i) => {
+    const x = (i / Math.max(1, values.length - 1)) * w;
+    const y = h - ((v - lo) / span) * h * 0.8 - h * 0.1;
+    if (i === 0) ctxs.moveTo(x, y); else ctxs.lineTo(x, y);
+  });
+  ctxs.stroke();
+  ctxs.fillStyle = color;
+  ctxs.beginPath();
+  const lastY = h - ((values[values.length - 1] - lo) / span) * h * 0.8 - h * 0.1;
+  ctxs.arc(w - 2, lastY, 3, 0, Math.PI * 2);
+  ctxs.fill();
+}
+
+// Wire up Stats + Settings buttons
+document.getElementById('homeStatsBtn').addEventListener('click', openStats);
+document.getElementById('homeSettingsBtn').addEventListener('click', openSettings);
+document.getElementById('statsClose').addEventListener('click', closeStats);
+document.getElementById('statsClose2').addEventListener('click', closeStats);
+document.getElementById('settingsClose').addEventListener('click', closeSettings);
+document.getElementById('settingsClose2').addEventListener('click', closeSettings);
+document.getElementById('setAudio').addEventListener('change', (e) => {
+  STATE.audioEnabled = !!e.target.checked;
+  if (STATE.audioEnabled) audio.ensure();
+  saveState(); renderHome();
+});
+document.getElementById('setHaptics').addEventListener('change', (e) => {
+  STATE.settings.haptics = !!e.target.checked; saveState();
+});
+document.getElementById('setReducedMotion').addEventListener('change', (e) => {
+  STATE.settings.reducedMotion = !!e.target.checked; applySettings(); saveState();
+});
+document.querySelectorAll('.seg-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('is-active'));
+  btn.classList.add('is-active');
+  STATE.settings.typeScale = parseFloat(btn.dataset.scale);
+  applySettings(); saveState();
+}));
+document.getElementById('resetCurrent').addEventListener('click', () => {
+  const id = prompt('Reset progress for which game? Type the id: ' + GAME_IDS.join(', '));
+  if (!id || !GAME_IDS.includes(id)) return;
+  if (!confirm(`Wipe all progress for "${id}"? This cannot be undone.`)) return;
+  STATE.games[id] = { unlockedLevel: 1, bestScores: {}, sessions: [] };
+  saveState(); renderHome(); renderStats();
+});
+document.getElementById('resetAll').addEventListener('click', () => {
+  if (!confirm('Wipe ALL progress in ALL games? This cannot be undone.')) return;
+  for (const id of GAME_IDS) STATE.games[id] = { unlockedLevel: 1, bestScores: {}, sessions: [] };
+  STATE.streak = 0; STATE.lastPlayedDay = null;
+  saveState(); renderHome(); renderStats();
+});
 
 // ==========================================================================
 // INIT
