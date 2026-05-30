@@ -541,6 +541,9 @@
       grid-template-columns: auto 1fr auto;
     }
     .level-card .level-stats { display: none; }
+    .game-card { padding: 16px 16px; gap: 12px; grid-template-columns: auto 1fr auto; }
+    .game-card .card-progress { display: none; }
+    .game-card .info .name { font-size: 16px; }
     .level-info .name { font-size: 15px; }
     .level-info .paradigm { font-size: 11px; }
     .level-actions .play { padding: 6px 12px; font-size: 13px; }
@@ -572,26 +575,30 @@
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 22px 24px;
+    padding: 20px 22px;
     display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 18px;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 16px;
     align-items: center;
     cursor: pointer;
     transition: border-color .15s, transform .1s, box-shadow .15s;
   }
-  .game-card:hover { border-color: var(--ink); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+  .game-card:hover { border-color: var(--line-strong); transform: translateY(-1px); box-shadow: 0 6px 20px -8px rgba(0,0,0,0.12); }
   .game-card .accent-dot {
-    width: 14px; height: 14px; border-radius: 50%;
+    width: 10px; height: 10px; border-radius: 50%;
     background: var(--card-accent, var(--accent));
     flex-shrink: 0;
+    align-self: start;
+    margin-top: 7px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--card-accent, var(--accent)) 14%, transparent);
   }
-  .game-card .info .name { font-weight: 600; font-size: 19px; letter-spacing: -0.3px; }
-  .game-card .info .tagline { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .game-card .info .progress { color: var(--muted); font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; }
-  .game-card .info .progress .num { color: var(--ink); font-weight: 600; }
-  .game-card .open-arrow { color: var(--muted); font-size: 18px; transition: color .15s, transform .15s; }
-  .game-card:hover .open-arrow { color: var(--ink); transform: translateX(2px); }
+  .game-card .info .name { font-weight: 600; font-size: 18px; letter-spacing: -0.3px; }
+  .game-card .info .tagline { color: var(--muted); font-size: 13px; margin-top: 3px; line-height: 1.45; }
+  .game-card .card-progress { text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .game-card .card-progress .num { color: var(--ink); font-weight: 600; font-size: 15px; }
+  .game-card .card-progress .sub { display: block; font-size: 11px; letter-spacing: 0.2px; }
+  .game-card .open-arrow { color: var(--muted-soft); font-size: 18px; transition: color .15s, transform .15s; }
+  .game-card:hover .open-arrow { color: var(--ink); transform: translateX(3px); }
 
   /* Back-to-home link in level menu */
   .menu-back {
@@ -832,7 +839,7 @@
     <div>Total sessions: <span class="num" id="homeTotalSessions">0</span></div>
     <button class="audio-toggle" id="homeAudioToggle">Audio: off</button>
     <button class="audio-toggle" id="homeStatsBtn" aria-label="Open stats">Stats</button>
-    <button class="audio-toggle" id="homeSettingsBtn" aria-label="Open settings">⚙ Settings</button>
+    <button class="audio-toggle" id="homeSettingsBtn" aria-label="Open settings">Settings</button>
   </div>
 
   <div class="daily-challenge" id="dailyChallenge"></div>
@@ -1453,10 +1460,10 @@ function renderHome() {
       <div class="info">
         <div class="name">${game.name}</div>
         <div class="tagline">${game.tagline}</div>
-        <div class="progress">
-          <span class="num">${unlocked}</span>/${game.totalLevels} unlocked
-          ${sessions ? ` · <span class="num">${sessions}</span> session${sessions === 1 ? '' : 's'}` : ''}
-        </div>
+      </div>
+      <div class="card-progress">
+        <span class="num">${unlocked}</span>/${game.totalLevels}
+        <span class="sub">${sessions ? `${sessions} played` : 'unlocked'}</span>
       </div>
       <div class="open-arrow">→</div>
     `;
@@ -5798,16 +5805,18 @@ function renderStatement(stmt, speaker) {
       return `${subj} ${verb} ${type}.`;
     }
     case 'and':
-      return `${renderStatement(stmt.left, speaker).slice(0, -1)} AND ${renderStatement(stmt.right, speaker).toLowerCase()}`;
+      // Keep proper-noun capitalization (Knight, Knave, names); just drop the period
+      // from the left clause so both halves flow into one sentence.
+      return `${renderStatement(stmt.left, speaker).slice(0, -1)} AND ${renderStatement(stmt.right, speaker)}`;
     case 'or':
-      return `Either ${renderStatement(stmt.left, speaker).slice(0, -1).toLowerCase()} or ${renderStatement(stmt.right, speaker).slice(0, -1).toLowerCase()}.`;
+      return `Either ${renderStatement(stmt.left, speaker).slice(0, -1)} or ${renderStatement(stmt.right, speaker)}`;
     case 'count': {
       const opWord = stmt.op === 'exactly' ? 'Exactly' : stmt.op === 'at_least' ? 'At least' : 'At most';
       const typeWord = stmt.isKnight ? 'Knight' : 'Knave';
       return `${opWord} ${stmt.n} of us ${stmt.n === 1 ? 'is a' : 'are'} ${typeWord}${stmt.n === 1 ? '' : 's'}.`;
     }
     case 'conditional':
-      return `If ${renderStatement(stmt.antecedent, speaker).slice(0, -1).toLowerCase()}, then ${renderStatement(stmt.consequent, speaker).slice(0, -1).toLowerCase()}.`;
+      return `If ${renderStatement(stmt.antecedent, speaker).slice(0, -1)}, then ${renderStatement(stmt.consequent, speaker)}`;
   }
 }
 
