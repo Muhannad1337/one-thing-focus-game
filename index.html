@@ -5356,6 +5356,131 @@ const TIER_COST_BANDS = {
   4: { min: 0,  max: 100 },
   5: { min: 0,  max: 200 },  // intentionally wide for tier 5
 };
+
+// =========================================================================
+// LOGIC PUZZLES: SYLLOGISM GENERATOR
+// =========================================================================
+
+const SYLLOGISM_WORDS = {
+  abstract: [
+    ['Klorps', 'Zogs', 'Brins'],
+    ['Voks', 'Drips', 'Mibs'],
+    ['Tafs', 'Pims', 'Glunks'],
+    ['Wibs', 'Norks', 'Quels'],
+  ],
+  neutral: [
+    ['triangles', 'shapes', 'polygons'],
+    ['cars', 'vehicles', 'machines'],
+    ['flowers', 'plants', 'living things'],
+    ['hammers', 'tools', 'objects'],
+  ],
+  realWorld: [
+    // Pairs chosen to create belief-bias traps in tier 5
+    ['birds', 'flying things', 'animals'],
+    ['penguins', 'birds', 'flying animals'],
+    ['lawyers', 'professionals', 'rich people'],
+    ['vegetarians', 'people who avoid meat', 'healthy people'],
+  ],
+};
+
+const PROP_TEMPLATES = {
+  A: (s, p) => `All ${s} are ${p}.`,
+  E: (s, p) => `No ${s} are ${p}.`,
+  I: (s, p) => `Some ${s} are ${p}.`,
+  O: (s, p) => `Some ${s} are not ${p}.`,
+};
+
+// All 24 traditionally valid (mood, figure) pairs
+const VALID_FORMS = [];
+for (let fig = 1; fig <= 4; fig++) {
+  for (const a of 'AEIO') for (const b of 'AEIO') for (const c of 'AEIO') {
+    const mood = a + b + c;
+    if (isSyllogismValid(mood, fig)) VALID_FORMS.push({ mood, figure: fig });
+  }
+}
+
+// All 256 forms (valid + invalid)
+const ALL_FORMS = [];
+for (let fig = 1; fig <= 4; fig++) {
+  for (const a of 'AEIO') for (const b of 'AEIO') for (const c of 'AEIO') {
+    ALL_FORMS.push({ mood: a + b + c, figure: fig });
+  }
+}
+
+// Pick which forms are allowed at each tier
+function getAllowedForms(tier) {
+  const band = TIER_COST_BANDS[tier];
+  if (tier === 1) {
+    return VALID_FORMS.filter(f => f.mood === 'AAA' && f.figure === 1);  // Barbara only
+  }
+  if (tier === 2) {
+    const allowed = ['AAA', 'EAE', 'AII', 'EIO'];
+    return VALID_FORMS.filter(f => f.figure === 1 && allowed.includes(f.mood));
+  }
+  if (tier === 3) {
+    return VALID_FORMS.filter(f => getGeurtsCost(f.mood, f.figure) <= band.max);
+  }
+  if (tier === 4) {
+    // Mix of valid and invalid - player must judge
+    return ALL_FORMS.filter(f => getGeurtsCost(f.mood, f.figure, true) <= band.max);
+  }
+  // Tier 5
+  return ALL_FORMS;
+}
+
+function pickWordBank(tier) {
+  if (tier <= 2) return SYLLOGISM_WORDS.abstract;
+  if (tier <= 4) return SYLLOGISM_WORDS.neutral;
+  return SYLLOGISM_WORDS.realWorld;
+}
+
+function randomChoice(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Build the natural-language form of a syllogism using the figure layout.
+// Figure 1: M-P, S-M, S-P
+// Figure 2: P-M, S-M, S-P
+// Figure 3: M-P, M-S, S-P
+// Figure 4: P-M, M-S, S-P
+function renderSyllogism(mood, figure, words) {
+  const [S, M, P] = words;  // subject, middle, predicate
+  const [maj, min, conc] = mood.split('');
+  const layouts = {
+    1: { major: [M, P], minor: [S, M] },
+    2: { major: [P, M], minor: [S, M] },
+    3: { major: [M, P], minor: [M, S] },
+    4: { major: [P, M], minor: [M, S] },
+  };
+  const layout = layouts[figure];
+  return {
+    premises: [
+      PROP_TEMPLATES[maj](layout.major[0], layout.major[1]),
+      PROP_TEMPLATES[min](layout.minor[0], layout.minor[1]),
+    ],
+    conclusion: PROP_TEMPLATES[conc](S, P),
+  };
+}
+
+// Main generator function
+function generateSyllogism(tier) {
+  const allowed = getAllowedForms(tier);
+  const form = randomChoice(allowed);
+  const wordBank = pickWordBank(tier);
+  const words = randomChoice(wordBank);
+  const { premises, conclusion } = renderSyllogism(form.mood, form.figure, words);
+  const valid = isSyllogismValid(form.mood, form.figure);
+  return {
+    type: 'syllogism',
+    tier,
+    mood: form.mood,
+    figure: form.figure,
+    geurtsCost: getGeurtsCost(form.mood, form.figure, tier >= 4),
+    premises,
+    conclusion,
+    correctAnswer: valid ? 'valid' : 'invalid',
+  };
+}
 </script>
 </body>
 </html>
