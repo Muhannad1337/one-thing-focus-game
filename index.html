@@ -1541,6 +1541,12 @@ document.getElementById('menuBack').addEventListener('click', backToHome);
 // ==========================================================================
 
 function openTutorial(levelId) {
+  // Think It Through bypasses the tutorial modal entirely (puzzles have inline
+  // instructions; no time pressure means no countdown needed).
+  if (currentGameId === 'thinkItThrough') {
+    startLevel(levelId);
+    return;
+  }
   const meta = LEVEL_META[levelId];
   document.getElementById('tutTitle').textContent = `Level ${levelId} — ${meta.name}`;
   document.getElementById('tutParadigm').textContent = `${meta.paradigm} · ${meta.duration} seconds`;
@@ -1828,6 +1834,12 @@ function feedback(kind, text) {
 }
 
 function startLevel(levelId) {
+  // Think It Through has a discrete puzzle-by-puzzle flow that bypasses the
+  // time-based stage/canvas machinery entirely.
+  if (currentGameId === 'thinkItThrough') {
+    startThinkSession(levelId);
+    return;
+  }
   document.getElementById('menu').style.display = 'none';
   const screen = document.getElementById('gameScreen');
   screen.classList.add('active');
@@ -6228,6 +6240,139 @@ function showKKFeedback(puzzle, userAnswer, container, onNext) {
   nextBtn.textContent = 'Next puzzle';
   nextBtn.addEventListener('click', onNext);
   container.appendChild(nextBtn);
+}
+
+// =========================================================================
+// LOGIC PUZZLES: LEVEL META + SESSION CONTROLLER
+// =========================================================================
+
+const THINK_SCIENCE = {
+  description: "Practicing deductive reasoning shows some evidence of transfer in research, more than most 'brain training' tasks. LSAT preparation studies (PLOS ONE, 2015) found improvements on untrained transitive-inference tasks after intensive practice. The Mental Models Training App study (Frontiers in Psychology, 2023) confirmed that adaptive practice with deductive reasoning reliably improves performance. The gap between 'better at puzzles' and 'better at real-world decisions' is still real. The honest benefit is the daily ritual: putting your phone down and sitting with a problem until you understand it.",
+  citation: "Syllogisms: Johnson-Laird & Steedman (1978). Knights & Knaves: Smullyan, R. (1978). What Is the Name of This Book? Prentice-Hall.",
+};
+
+const LEVEL_META_THINK = {
+  1: { name: 'Extremely Easy', paradigm: 'Syllogisms · Knights & Knaves',
+       short: 'Warm up. Simple deductions, no tricks.',
+       accent: '#D4A356', duration: 0, science: THINK_SCIENCE },
+  2: { name: 'Easy', paradigm: 'Syllogisms · Knights & Knaves',
+       short: 'Adds more characters and proposition types. Still gentle.',
+       accent: '#D4A356', duration: 0, science: THINK_SCIENCE },
+  3: { name: 'Medium', paradigm: 'Syllogisms · Knights & Knaves',
+       short: 'Compound statements and the full set of valid syllogism forms.',
+       accent: '#D4A356', duration: 0, science: THINK_SCIENCE },
+  4: { name: 'Hard', paradigm: 'Syllogisms · Knights & Knaves',
+       short: 'Counts, invalid syllogisms. Slow down.',
+       accent: '#D4A356', duration: 0, science: THINK_SCIENCE },
+  5: { name: 'Extremely Hard', paradigm: 'Syllogisms · Knights & Knaves',
+       short: 'Conditional statements. Belief-bias traps. Mind-benders.',
+       accent: '#D4A356', duration: 0, science: THINK_SCIENCE },
+};
+
+// Register meta so menu rendering and selectGame() pick it up
+GAME_META.thinkItThrough = LEVEL_META_THINK;
+
+// Session state for an active Think It Through puzzle session
+let thinkSession = null;
+
+function startThinkSession(levelId) {
+  thinkSession = {
+    levelId,
+    puzzles: [],
+    currentIndex: 0,
+    correctCount: 0,
+    startTime: Date.now(),
+  };
+  // Generate 5 puzzles, randomly mixing syllogism and K&K
+  for (let i = 0; i < 5; i++) {
+    const type = Math.random() < 0.5 ? 'syllogism' : 'kk';
+    const puzzle = type === 'syllogism'
+      ? generateSyllogism(levelId)
+      : generateKnightsKnaves(levelId);
+    thinkSession.puzzles.push(puzzle);
+  }
+
+  // Hide menu, show think screen
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('thinkScreen').style.display = 'flex';
+  document.documentElement.style.setProperty('--accent', '#D4A356');
+
+  document.getElementById('thinkLevelName').textContent =
+    `Level ${levelId}: ${LEVEL_META_THINK[levelId].name}`;
+  document.getElementById('thinkBackBtn').onclick = () => exitThinkSession();
+
+  renderCurrentPuzzle();
+}
+
+function renderCurrentPuzzle() {
+  const session = thinkSession;
+  const puzzle = session.puzzles[session.currentIndex];
+  const stage = document.getElementById('thinkStage');
+
+  document.getElementById('thinkProgress').textContent =
+    `Puzzle ${session.currentIndex + 1} of ${session.puzzles.length}`;
+  document.getElementById('thinkScore').textContent =
+    `${session.correctCount}/${session.currentIndex}`;
+
+  if (puzzle.type === 'syllogism') {
+    renderSyllogismUI(puzzle, stage, (userAns, _btn, answersContainer) => {
+      const isCorrect = userAns === puzzle.correctAnswer;
+      if (isCorrect) session.correctCount++;
+      document.getElementById('thinkScore').textContent =
+        `${session.correctCount}/${session.currentIndex + 1}`;
+      showSyllogismFeedback(puzzle, userAns, answersContainer.parentElement, advancePuzzle);
+    });
+  } else {
+    renderKKUI(puzzle, stage, (userAns, card) => {
+      const isCorrect = puzzle.people.every(p => userAns[p] === puzzle.correctAnswer[p]);
+      if (isCorrect) session.correctCount++;
+      document.getElementById('thinkScore').textContent =
+        `${session.correctCount}/${session.currentIndex + 1}`;
+      showKKFeedback(puzzle, userAns, card, advancePuzzle);
+    });
+  }
+}
+
+function advancePuzzle() {
+  thinkSession.currentIndex++;
+  if (thinkSession.currentIndex >= thinkSession.puzzles.length) {
+    showThinkResults();
+  } else {
+    renderCurrentPuzzle();
+  }
+}
+
+function showThinkResults() {
+  const session = thinkSession;
+  const accuracy = session.correctCount / session.puzzles.length;
+  const passed = session.correctCount >= 4;
+
+  // Record using existing session machinery (handles streak + unlock)
+  recordSessionCompletion('thinkItThrough', session.levelId, session.correctCount, accuracy);
+
+  const stage = document.getElementById('thinkStage');
+  stage.innerHTML = `
+    <div class="puzzle-card" style="text-align:center">
+      <h2 style="margin-bottom:8px">${passed ? 'Level passed.' : 'Try again.'}</h2>
+      <div style="font-size: 36px; margin: 16px 0; color: var(--accent); font-weight: 600">
+        ${session.correctCount}/${session.puzzles.length}
+      </div>
+      <div style="color: var(--muted); margin-bottom: 24px">
+        ${passed
+          ? (session.levelId < 5 ? `Level ${session.levelId + 1} unlocked.` : 'You finished the hardest tier.')
+          : 'Need 4/5 to unlock the next tier.'}
+      </div>
+      <button class="next-btn" id="thinkExitBtn">Back to levels</button>
+    </div>
+  `;
+  document.getElementById('thinkExitBtn').onclick = () => exitThinkSession();
+}
+
+function exitThinkSession() {
+  document.getElementById('thinkScreen').style.display = 'none';
+  document.getElementById('menu').style.display = 'block';
+  thinkSession = null;
+  renderMenu();
 }
 </script>
 </body>
