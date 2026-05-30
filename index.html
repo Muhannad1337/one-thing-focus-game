@@ -5671,6 +5671,74 @@ function showSyllogismFeedback(puzzle, userAnswer, container, onNext) {
   nextBtn.addEventListener('click', onNext);
   container.appendChild(nextBtn);
 }
+
+// =========================================================================
+// LOGIC PUZZLES: KNIGHTS & KNAVES
+// =========================================================================
+// Statement types are tagged objects. Evaluator takes a Map of name => 'knight'|'knave'
+// and returns true if the statement is true under that assignment.
+//
+// Statement shapes:
+//   { type: 'self_identity', target: 'A', isKnight: true }
+//   { type: 'other_identity', target: 'B', isKnight: false }
+//   { type: 'and', left: stmt, right: stmt }
+//   { type: 'or', left: stmt, right: stmt }
+//   { type: 'count', op: 'exactly'|'at_least'|'at_most', n: 2, isKnight: false }
+//   { type: 'conditional', antecedent: stmt, consequent: stmt }
+
+function evaluateStatement(stmt, assignment) {
+  switch (stmt.type) {
+    case 'self_identity':
+    case 'other_identity': {
+      const actual = assignment.get(stmt.target);
+      return stmt.isKnight ? (actual === 'knight') : (actual === 'knave');
+    }
+    case 'and':
+      return evaluateStatement(stmt.left, assignment) && evaluateStatement(stmt.right, assignment);
+    case 'or':
+      return evaluateStatement(stmt.left, assignment) || evaluateStatement(stmt.right, assignment);
+    case 'count': {
+      const target = stmt.isKnight ? 'knight' : 'knave';
+      let count = 0;
+      assignment.forEach(v => { if (v === target) count++; });
+      if (stmt.op === 'exactly')  return count === stmt.n;
+      if (stmt.op === 'at_least') return count >= stmt.n;
+      if (stmt.op === 'at_most')  return count <= stmt.n;
+      return false;
+    }
+    case 'conditional':
+      // If antecedent then consequent. Vacuously true if antecedent is false.
+      if (!evaluateStatement(stmt.antecedent, assignment)) return true;
+      return evaluateStatement(stmt.consequent, assignment);
+    default:
+      throw new Error('Unknown statement type: ' + stmt.type);
+  }
+}
+
+// Render a statement as natural language English.
+function renderStatement(stmt, speaker) {
+  switch (stmt.type) {
+    case 'self_identity':
+      return stmt.isKnight ? 'I am a Knight.' : 'I am a Knave.';
+    case 'other_identity': {
+      const verb = stmt.target === speaker ? 'am' : 'is';
+      const subj = stmt.target === speaker ? 'I' : stmt.target;
+      const type = stmt.isKnight ? 'a Knight' : 'a Knave';
+      return `${subj} ${verb} ${type}.`;
+    }
+    case 'and':
+      return `${renderStatement(stmt.left, speaker).slice(0, -1)} AND ${renderStatement(stmt.right, speaker).toLowerCase()}`;
+    case 'or':
+      return `Either ${renderStatement(stmt.left, speaker).slice(0, -1).toLowerCase()} or ${renderStatement(stmt.right, speaker).slice(0, -1).toLowerCase()}.`;
+    case 'count': {
+      const opWord = stmt.op === 'exactly' ? 'Exactly' : stmt.op === 'at_least' ? 'At least' : 'At most';
+      const typeWord = stmt.isKnight ? 'Knight' : 'Knave';
+      return `${opWord} ${stmt.n} of us ${stmt.n === 1 ? 'is a' : 'are'} ${typeWord}${stmt.n === 1 ? '' : 's'}.`;
+    }
+    case 'conditional':
+      return `If ${renderStatement(stmt.antecedent, speaker).slice(0, -1).toLowerCase()}, then ${renderStatement(stmt.consequent, speaker).slice(0, -1).toLowerCase()}.`;
+  }
+}
 </script>
 </body>
 </html>
