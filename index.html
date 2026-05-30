@@ -908,6 +908,8 @@ let TOTAL_LEVELS = 12;
 
 let currentGameId = 'oneThing';
 const GAME_META = { oneThing: LEVEL_META };
+// Filled in by the logic puzzles section near end of script
+GAME_META.thinkItThrough = {};
 // GAME_META.schulte / .flanker / .stroop / .nback added at end of script
 
 const GAMES = [
@@ -944,6 +946,13 @@ const GAMES = [
     name: 'N-Back',
     tagline: 'Match the symbol from N steps ago. Trains working memory and focus.',
     accent: '#3FA6BD',
+    totalLevels: 5,
+  },
+  {
+    id: 'thinkItThrough',
+    name: 'Think It Through',
+    tagline: 'Logic puzzles examiners and scientists actually use. 5 tiers from easy to mind-bending.',
+    accent: '#D4A356',
     totalLevels: 5,
   },
 ];
