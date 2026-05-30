@@ -653,7 +653,7 @@
 // ==========================================================================
 
 const STORAGE_KEY = 'oneThing.v1';
-const GAME_IDS = ['oneThing', 'schulte', 'flanker', 'stroop', 'nback'];
+const GAME_IDS = ['oneThing', 'schulte', 'flanker', 'stroop', 'nback', 'boxBreath', 'span', 'stopSignal'];
 
 function emptyGameProgress() {
   return { unlockedLevel: 1, bestScores: {}, sessions: [] };
@@ -949,9 +949,9 @@ let TOTAL_LEVELS = 12;
 
 let currentGameId = 'oneThing';
 const GAME_META = { oneThing: LEVEL_META };
-// Filled in by the logic puzzles section near end of script
-GAME_META.thinkItThrough = {};
-// GAME_META.schulte / .flanker / .stroop / .nback added at end of script
+// GAME_META.schulte / .flanker / .stroop / .nback / .boxBreath / .span / .stopSignal
+// are added at the end of the script (so each game's metadata is co-located
+// with its level constructors).
 
 const GAMES = [
   {
@@ -990,10 +990,24 @@ const GAMES = [
     totalLevels: 5,
   },
   {
-    id: 'thinkItThrough',
-    name: 'Think It Through',
-    tagline: 'Logic puzzles examiners and scientists actually use. 5 tiers from easy to mind-bending.',
-    accent: '#D4A356',
+    id: 'boxBreath',
+    name: 'Box Breath',
+    tagline: 'Inhale 4 · Hold 4 · Exhale 4 · Hold 4. The mindful cooldown after a hard session.',
+    accent: '#6BA89E',
+    totalLevels: 5,
+  },
+  {
+    id: 'span',
+    name: 'Digit Span',
+    tagline: 'Watch a sequence, then tap it back. Forward then backward. Trains short-term memory.',
+    accent: '#C97B5B',
+    totalLevels: 5,
+  },
+  {
+    id: 'stopSignal',
+    name: 'Stop Signal',
+    tagline: 'Go on every arrow — but stop if the tone plays. Cleanest measure of motor inhibition.',
+    accent: '#7C7DE0',
     totalLevels: 5,
   },
 ];
@@ -1636,6 +1650,9 @@ function makeLevel(gameId, levelId) {
   if (gameId === 'flanker') return makeFlankerLevel(levelId);
   if (gameId === 'stroop') return makeStroopLevel(levelId);
   if (gameId === 'nback') return makeNbackLevel(levelId);
+  if (gameId === 'boxBreath') return makeBoxBreathLevel(levelId);
+  if (gameId === 'span') return makeSpanLevel(levelId);
+  if (gameId === 'stopSignal') return makeStopSignalLevel(levelId);
 }
 
 function makeOneThingLevel(id) {
@@ -3753,6 +3770,10 @@ function makeFlankerCore(opts) {
   let trialsSinceRuleChange = 0;
   let nextRuleChange = 8 + Math.floor(Math.random() * 5);
   let cueEl = null;
+  // Adaptive response-window staircase: shortens ISI as accuracy climbs,
+  // lengthens when player misses. Targets ~75% accuracy per ACE-X.
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6, windowMs: 12000 });
+  function currentIsi() { return Math.max(700, opts.isi - (adaptive.level - 1) * 120); }
 
   function newTrial() {
     const centerDir = Math.random() < 0.5 ? 'L' : 'R';
@@ -3836,10 +3857,11 @@ function makeFlankerCore(opts) {
         pressed = false;
         trialStart = now;
         phase = 'show';
-        phaseEnd = now + opts.isi;
+        phaseEnd = now + currentIsi();
       } else if (phase === 'show' && now >= phaseEnd) {
         if (!pressed) {
           stats.missed++;
+          adaptive.record(false);
           feedback('bad', 'Too slow');
         }
         currentTrial = null;
@@ -3886,13 +3908,16 @@ function makeFlankerCore(opts) {
         stats.rts.push(rt);
         if (currentTrial.flankerType === 'congruent') stats.congruentRTs.push(rt);
         else if (currentTrial.flankerType === 'incongruent') stats.incongruentRTs.push(rt);
+        adaptive.record(true);
         audio.good();
         feedback('good', `${rt.toFixed(0)}ms`);
       } else {
         stats.wrong++;
+        adaptive.record(false);
         audio.bad();
         feedback('bad', ruleOpposite ? 'Rule was OPPOSITE' : 'Wrong direction');
       }
+      adaptive.maybeAdjust(performance.now());
     },
     finish() {
       const total = stats.correct + stats.wrong + stats.missed;
@@ -4042,6 +4067,12 @@ function makeStroopCore(opts) {
   let trialsSinceRuleChange = 0;
   let nextRuleChange = 6 + Math.floor(Math.random() * 5);
   let cueEl = null;
+  // Adaptive response-window staircase — shortens displayMs as accuracy climbs.
+  // Targets the ~75% accuracy zone (Levitt 1971 / ACE-X 2025).
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6, windowMs: 12000 });
+  function currentDisplayMs() {
+    return Math.max(700, opts.displayMs - (adaptive.level - 1) * 120);
+  }
 
   function newTrial() {
     const word = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -4100,13 +4131,15 @@ function makeStroopCore(opts) {
         trial = newTrial();
         trialStart = now;
         phase = 'show';
-        phaseEnd = now + opts.displayMs;
+        phaseEnd = now + currentDisplayMs();
       } else if (phase === 'show' && now >= phaseEnd) {
         stats.missed++;
+        adaptive.record(false);
         feedback('bad', 'Too slow');
         trial = null;
         phase = 'blank';
         maybeSwitchRule();
+        adaptive.maybeAdjust(now);
         phaseEnd = now + 250;
       }
       const r = canvas.getBoundingClientRect();
@@ -4130,16 +4163,19 @@ function makeStroopCore(opts) {
       if (k === expectedKey) {
         stats.correct++;
         stats.rts.push(rt);
+        adaptive.record(true);
         audio.good();
         feedback('good', `${rt.toFixed(0)}ms`);
       } else {
         stats.wrong++;
+        adaptive.record(false);
         audio.bad();
         feedback('bad', matchWord ? 'Should match the WORD' : 'Should match the INK');
       }
       trial = null;
       phase = 'blank';
       maybeSwitchRule();
+      adaptive.maybeAdjust(performance.now());
       phaseEnd = performance.now() + 250;
     },
     finish() {
@@ -4269,7 +4305,6 @@ function makeNbackCore(opts) {
   const SYMBOLS = ['◆', '▲', '●', '■', '★', '✚', '◐', '⬢'];
   const N = opts.n;
   let history = [];
-  const stimDisplayMs = Math.floor(opts.soaMs * 0.6);
   let phase = 'blank';
   let phaseEnd = 0;
   let currentSymbol = null;
@@ -4278,13 +4313,25 @@ function makeNbackCore(opts) {
   let trialIdx = 0;
   const stats = { hits: 0, misses: 0, correctRejections: 0, falseAlarms: 0, rts: [] };
   let cueEl = null;
+  // Adaptive SOA staircase — shorter intervals as accuracy climbs. Reuses
+  // the shared makeAdaptive helper so n-back follows the same one-up-four-down
+  // dynamic as Flanker/Stroop (ACE-X 2025).
+  const adaptive = makeAdaptive({ initial: 1, min: 1, max: 6, windowMs: 12000 });
+  function currentSoa() {
+    return Math.max(800, opts.soaMs - (adaptive.level - 1) * 150);
+  }
+  function currentStimMs() { return Math.floor(currentSoa() * 0.6); }
 
   function pickNext() {
     const r = Math.random();
     if (history.length >= N && r < 0.30) {
       return { sym: history[history.length - N], isTarget: true, isLure: false };
     }
-    if (opts.lureProb > 0 && r < 0.30 + opts.lureProb && history.length >= 1) {
+    // Lure trials require enough history to BOTH evaluate the N-back position
+    // AND offer a meaningful trap. Wait until history.length >= N + 1 so a
+    // 3-back's first "trap" trial can't accidentally hit a 1-back position
+    // that doesn't yet exist (fixes a confusing trial-2 false-positive).
+    if (opts.lureProb > 0 && r < 0.30 + opts.lureProb && history.length >= N + 1) {
       const lurePositions = [];
       if (N - 1 >= 1 && history.length >= N - 1) lurePositions.push(N - 1);
       if (history.length >= N + 1) lurePositions.push(N + 1);
@@ -4328,22 +4375,27 @@ function makeNbackCore(opts) {
         pressed = false;
         trialIdx++;
         phase = 'show';
-        phaseEnd = now + stimDisplayMs;
+        phaseEnd = now + currentStimMs();
       } else if (phase === 'show' && now >= phaseEnd) {
         if (currentSymbol.isTarget) {
           if (!pressed) {
             stats.misses++;
+            adaptive.record(false);
             feedback('bad', `Missed — that was ${N} back`);
             audio.bad();
           }
         } else {
-          if (!pressed) stats.correctRejections++;
+          if (!pressed) {
+            stats.correctRejections++;
+            adaptive.record(true);
+          }
         }
         history.push(currentSymbol.sym);
         if (history.length > 8) history = history.slice(-8);
         currentSymbol = null;
         phase = 'blank';
-        phaseEnd = now + (opts.soaMs - stimDisplayMs);
+        adaptive.maybeAdjust(now);
+        phaseEnd = now + (currentSoa() - currentStimMs());
       }
       const r = canvas.getBoundingClientRect();
       const w = r.width, h = r.height;
@@ -4372,13 +4424,16 @@ function makeNbackCore(opts) {
       if (currentSymbol.isTarget) {
         stats.hits++;
         stats.rts.push(rt);
+        adaptive.record(true);
         audio.good();
         feedback('good', 'Match!');
       } else {
         stats.falseAlarms++;
+        adaptive.record(false);
         audio.bad();
         feedback('bad', currentSymbol.isLure ? 'Lure trap — that wasn\'t N back' : 'No match');
       }
+      adaptive.maybeAdjust(performance.now());
     },
     finish() {
       const targets = stats.hits + stats.misses;
