@@ -5739,6 +5739,38 @@ function renderStatement(stmt, speaker) {
       return `If ${renderStatement(stmt.antecedent, speaker).slice(0, -1).toLowerCase()}, then ${renderStatement(stmt.consequent, speaker).slice(0, -1).toLowerCase()}.`;
   }
 }
+
+// Brute-force SAT solver for K&K. With at most 5 people, that's 2^5 = 32 assignments,
+// far too few to need anything fancier. Returns array of all valid assignments.
+//
+// A statement said by a person is "consistent" if:
+//   - the speaker is a knight AND the statement is true, OR
+//   - the speaker is a knave AND the statement is false.
+function solveKnightsKnaves(people, statementsByPerson) {
+  const n = people.length;
+  const solutions = [];
+  for (let mask = 0; mask < (1 << n); mask++) {
+    const assignment = new Map();
+    for (let i = 0; i < n; i++) {
+      assignment.set(people[i], (mask & (1 << i)) ? 'knight' : 'knave');
+    }
+    let consistent = true;
+    for (const person of people) {
+      const stmts = statementsByPerson[person] || [];
+      for (const stmt of stmts) {
+        const stmtTrue = evaluateStatement(stmt, assignment);
+        const speakerIsKnight = assignment.get(person) === 'knight';
+        if (speakerIsKnight !== stmtTrue) {
+          consistent = false;
+          break;
+        }
+      }
+      if (!consistent) break;
+    }
+    if (consistent) solutions.push(assignment);
+  }
+  return solutions;
+}
 </script>
 </body>
 </html>
