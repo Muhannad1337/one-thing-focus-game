@@ -4472,6 +4472,76 @@ window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => { /* silently no-op on first install */ });
   }
 });
+
+// =========================================================================
+// LOGIC PUZZLES: VALIDITY + COST
+// =========================================================================
+// Categorical syllogism validity, based on the 5 traditional rules.
+// Mood = ordered triple of proposition types (A, E, I, O).
+// Figure = position of middle term across major/minor premises (1, 2, 3, 4).
+// 256 total mood × figure combinations. 24 are traditionally valid.
+
+const PROPOSITIONS = {
+  A: { name: 'Universal Affirmative', distribSubj: true,  distribPred: false, negative: false, universal: true  },
+  E: { name: 'Universal Negative',    distribSubj: true,  distribPred: true,  negative: true,  universal: true  },
+  I: { name: 'Particular Affirmative',distribSubj: false, distribPred: false, negative: false, universal: false },
+  O: { name: 'Particular Negative',   distribSubj: false, distribPred: true,  negative: true,  universal: false },
+};
+
+// For a given figure (1-4), which slot (subj or pred) of each premise holds the middle term.
+// Returns { major: 'subj'|'pred', minor: 'subj'|'pred' }
+const FIGURE_LAYOUT = {
+  1: { major: 'subj', minor: 'pred' },  // M-P, S-M
+  2: { major: 'pred', minor: 'pred' },  // P-M, S-M
+  3: { major: 'subj', minor: 'subj' },  // M-P, M-S
+  4: { major: 'pred', minor: 'subj' },  // P-M, M-S
+};
+
+// Is the term at position 'subj' or 'pred' distributed for proposition type t?
+function isDistributed(propType, position) {
+  return position === 'subj' ? PROPOSITIONS[propType].distribSubj : PROPOSITIONS[propType].distribPred;
+}
+
+// Check the 5 traditional validity rules.
+// mood: 3-char string like 'AAA' (major, minor, conclusion)
+// figure: 1-4
+function isSyllogismValid(mood, figure) {
+  const [maj, min, conc] = mood.split('');
+  const layout = FIGURE_LAYOUT[figure];
+
+  // The middle term (M) sits in one position of each premise (per FIGURE_LAYOUT).
+  // The other position holds the major term (P) in the major premise and the minor term (S) in the minor premise.
+  const majMiddlePos = layout.major;
+  const majOtherPos  = layout.major === 'subj' ? 'pred' : 'subj';
+  const minMiddlePos = layout.minor;
+  const minOtherPos  = layout.minor === 'subj' ? 'pred' : 'subj';
+
+  // Rule 1: Middle term must be distributed in at least one premise
+  const middleDistributedSomewhere =
+    isDistributed(maj, majMiddlePos) || isDistributed(min, minMiddlePos);
+  if (!middleDistributedSomewhere) return false;
+
+  // Rule 2: If a term is distributed in the conclusion, it must be distributed in the premise it came from
+  // S is at 'subj' of conclusion; P is at 'pred' of conclusion
+  const sDistribInConc = isDistributed(conc, 'subj');
+  const pDistribInConc = isDistributed(conc, 'pred');
+  const sDistribInMinor = isDistributed(min, minOtherPos);
+  const pDistribInMajor = isDistributed(maj, majOtherPos);
+  if (sDistribInConc && !sDistribInMinor) return false;
+  if (pDistribInConc && !pDistribInMajor) return false;
+
+  // Rule 3: At least one premise must be affirmative (cannot have two negative premises)
+  if (PROPOSITIONS[maj].negative && PROPOSITIONS[min].negative) return false;
+
+  // Rule 4: If a premise is negative, the conclusion must be negative (and vice versa)
+  const eitherPremiseNeg = PROPOSITIONS[maj].negative || PROPOSITIONS[min].negative;
+  if (eitherPremiseNeg !== PROPOSITIONS[conc].negative) return false;
+
+  // Rule 5: If both premises are universal, the conclusion must be universal
+  if (PROPOSITIONS[maj].universal && PROPOSITIONS[min].universal && !PROPOSITIONS[conc].universal) return false;
+
+  return true;
+}
 </script>
 </body>
 </html>
