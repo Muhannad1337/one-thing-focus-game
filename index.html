@@ -801,7 +801,7 @@
 // ==========================================================================
 
 const STORAGE_KEY = 'oneThing.v1';
-const GAME_IDS = ['oneThing', 'schulte', 'flanker', 'stroop', 'nback', 'boxBreath', 'span', 'stopSignal'];
+const GAME_IDS = ['oneThing', 'schulte', 'flanker', 'stroop', 'nback', 'boxBreath', 'span', 'stopSignal', 'thinkItThrough'];
 
 function emptyGameProgress() {
   return { unlockedLevel: 1, bestScores: {}, sessions: [] };
@@ -1107,8 +1107,9 @@ let TOTAL_LEVELS = 12;
 let currentGameId = 'oneThing';
 const GAME_META = { oneThing: LEVEL_META };
 // GAME_META.schulte / .flanker / .stroop / .nback / .boxBreath / .span / .stopSignal
-// are added at the end of the script (so each game's metadata is co-located
-// with its level constructors).
+// / .thinkItThrough are added at the end of the script (so each game's metadata
+// is co-located with its level constructors).
+GAME_META.thinkItThrough = {}; // placeholder, filled in by logic puzzles section near end of script
 
 const GAMES = [
   {
@@ -1165,6 +1166,13 @@ const GAMES = [
     name: 'Stop Signal',
     tagline: 'Go on every arrow — but stop if the tone plays. Cleanest measure of motor inhibition.',
     accent: '#7C7DE0',
+    totalLevels: 5,
+  },
+  {
+    id: 'thinkItThrough',
+    name: 'Think It Through',
+    tagline: 'Logic puzzles examiners and scientists actually use. 5 tiers from easy to mind-bending.',
+    accent: '#D4A356',
     totalLevels: 5,
   },
 ];
