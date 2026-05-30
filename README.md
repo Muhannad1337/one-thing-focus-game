@@ -1,104 +1,110 @@
-# Focus Games
-
-> Six focus-training mini-games rooted in attention-science research. Practice
-> single-tasking on phone or web. No accounts, no analytics.
+# Focus Games — eight attention-training mini-games
 
 Live: <https://one-thing-focus-game-zkwxfc.cranl.net>
 
-## What's inside
+Eight focus-training games rooted in attention-science research, with their own progressive level ladders. **47 levels** across **eight paradigms**. Plays on phone and web. Single static HTML file. No accounts, no analytics, no tracking — progress lives in your browser's `localStorage`.
 
-| Game | Levels | Trains | Paradigm |
+## The eight games
+
+| Game | Levels | Paradigm | What it trains |
 |---|---|---|---|
-| **One Thing** | 12 | Sustained attention, inhibition, dual-task, search, breath | CPT · SART · Stroop · MOT · Flanker · Visual search · RSVP · Breath pacer · Change blindness |
-| **Schulte 25** | 5 | Visual search, attention anchoring | Schulte table |
-| **Arrow Flanker** | 5 | Selective attention, response inhibition | Eriksen flanker |
-| **Color Conflict** | 5 | Interference control | Stroop color-word |
-| **N-Back** | 5 | Working memory + sustained focus | Kirchner n-back |
-| **Think It Through** | 5 | Logical reasoning under attentional load | Constraint-satisfaction puzzles |
+| **One Thing** | 12 | CPT, SART, Stroop, MOT, NeuroRacer, Vigilance, Flanker, Visual Search, Attentional Blink, Breath, Change Blindness | A grand tour of attention paradigms |
+| **Schulte 25** | 5 | Visual search · attention anchoring | Tap 1 → N in order under a clock |
+| **Arrow Flanker** | 5 | Eriksen Flanker — selective attention | Respond to the center arrow, ignore flankers |
+| **Color Conflict** | 5 | Stroop interference | Pick the ink, not the word |
+| **N-Back** | 5 | Working memory · 1-back to 3-back | Match the symbol from N steps ago |
+| **Box Breath** | 5 | Mindful 4-4-4-4 breathing | The cooldown — 1 to 5 minutes |
+| **Digit Span** | 5 | Forward + backward digit span | Watch a sequence, tap it back |
+| **Stop Signal** | 5 | Stop-signal / motor inhibition | Go on every arrow — except when the tone plays |
 
-Total: **37 levels** across **6 games**.
+Each level uses **closed-loop adaptive difficulty** (75/65 thresholds — research-backed by ACE-X and the lifeart/focus reference app), and every game's results show **d-prime** alongside raw accuracy where the paradigm fits signal-detection theory.
 
-Each game has its own progression (≥75% accuracy unlocks the next level), its
-own best scores, its own session history. Progress is local-only — stored in
-`localStorage`, never sent anywhere.
+## How to play
 
-## Tech
+1. Open the live URL on your phone or laptop. (Or open `index.html` locally — no server needed.)
+2. Pick a game. Pass at ≥75% accuracy to unlock the next level.
+3. Each level walks you in: tutorial → 30 s practice → "Ready when you are" → real session.
+4. Tap **Stats** on home to see per-game sparklines + per-level personal bests + activity calendar.
+5. Tap **⚙ Settings** for audio, haptics, reduced motion, text size, and reset options.
 
-- **Single static HTML file** (`index.html`), ~4,400 lines of vanilla JS
-- **Zero runtime dependencies** — no React, no build step, no bundler
-- **PWA**: manifest + service worker → installable + offline-playable on phone
-- **Touch + keyboard parity**: every game playable with either
-- **Light + dark** via `prefers-color-scheme`
-- **Inter + Space Grotesk** (Google Fonts, `display=swap` so first paint is fast)
-- **Adaptive difficulty** per level via a one-up-four-down staircase helper
-- **Backwards-compatible storage**: v1 → v2 schema migration on first load
+## Mobile + web
+
+Adapts automatically:
+
+- **Desktop** — keyboard (`SPACE`, `← →`, `R B G Y`, `N`, digit keys for span) and mouse.
+- **Mobile** — large tap buttons appear at the bottom of every game. Canvas-tap directly for visual-search / MOT / change-blindness / Schulte. Pinch-zoom and pull-to-refresh are disabled inside gameplay so accidental gestures don't break a session.
+
+Detection is by `@media (any-pointer: coarse)`, so a phone-with-keyboard or tablet-in-laptop-mode picks up touch UI automatically.
+
+## Install to your phone (PWA)
+
+The site ships a `manifest.webmanifest` + service worker. On iOS Safari: tap Share → Add to Home Screen. On Android Chrome: tap the install prompt or the "Install app" menu item. The installed app:
+
+- Opens in standalone mode (no browser chrome).
+- Plays **offline** after the first visit.
+- Honors the system theme (light / dark).
+
+## File layout
+
+```
+Focus Game/
+├── index.html              # The whole app (HTML + CSS + JS in one file)
+├── manifest.webmanifest    # PWA install metadata
+├── sw.js                   # Service worker — cache-first for shell + Google Fonts
+├── Dockerfile              # nginx-based static deploy for CranL / any container PaaS
+├── icon.svg                # Bullseye favicon (SVG)
+├── icon-32.png             # Favicon raster
+├── apple-icon.png          # Apple touch icon (180×180)
+├── pwa-icon.png            # PWA / OG share image (512×512)
+├── vercel.json             # Optional Vercel deploy config
+├── package.json            # Optional npm scripts
+├── README.md               # This file
+└── IMPROVEMENT_PLAN.md     # Living roadmap
+```
 
 ## Deploy
 
-### CranL (production)
+### CranL (current production deploy)
 
-The live site runs on CranL with a tiny nginx image:
+The live site uses CranL with a Dockerfile build serving via nginx, region: Riyadh.
 
+To redeploy after a `git push origin main`, open the CranL dashboard → application → **Deploy**. To enable push-to-deploy: install the CranL GitHub App on the repo, then switch the application's source mode from "Public Git Repository" to "Connected Repository".
+
+### Elsewhere — single static HTML, deploys anywhere
+
+- **Vercel** — `vercel --prod` (config in `vercel.json`).
+- **Netlify** — drag the folder onto netlify.com/drop.
+- **Cloudflare Pages** — connect the GitHub repo, no build command.
+- **GitHub Pages** — enable Pages from repo Settings, serve `index.html`.
+- **surge.sh** — `npx surge`.
+- **Self-hosted** — `python3 -m http.server` from the folder.
+
+## Tech notes
+
+- Single `index.html`. Zero npm runtime deps. No build step. ~5000 lines including 47 level constructors and 8 game registries.
+- Fonts: **Inter** (body) + **Space Grotesk** (display), loaded from Google Fonts with `display=swap` and a `system-ui` fallback. Cached offline by the service worker.
+- Accessibility: WCAG-AA contrast (muted `#6A6A65` on `#FAFAF7`), `prefers-reduced-motion`, `prefers-color-scheme: dark`, system text-size scaling (`--type-scale`), per-button `aria-label`.
+- Persistence: LocalStorage `oneThing.v1` key with versioned schema and v1 → v2 migration.
+- Adaptive difficulty: shared `makeAdaptive({initial, min, max, windowMs, upAt: 0.75, downAt: 0.65})` helper, used by all 47 levels.
+
+## The science (and the honest caveat)
+
+These paradigms have been used in cognitive psychology research since 1935 (Stroop) up through 2025 (gamified Stop-Signal). Practice on each one reliably improves performance *on that task*. Closed-loop adaptive training (the NeuroRacer → EndeavorRx lineage) has cleared the FDA for attention improvements in children with ADHD.
+
+**What the literature debates:** whether "better at the SART" reliably transfers to "better at focusing on real-life tasks." Meta-analyses on n-back show small mixed far-transfer; most "brain training" apps overpromise here.
+
+**The honest claim of this app:** the daily ritual of single-tasking is the real intervention. The app is a 10–15 minute commitment to sit down and focus on one thing. Your scores will improve — that part is reliable. Whether that translates to focusing better in the rest of your life is something only you can observe in your own life.
+
+## Reset progress
+
+In-app: **⚙ Settings** → "Reset progress for one game…" or "Reset ALL progress".
+
+Via console:
+
+```js
+localStorage.removeItem('oneThing.v1'); location.reload();
 ```
-docker build -t one-thing-focus-game .
-docker run -p 80:80 one-thing-focus-game
-```
 
-The Dockerfile copies `index.html`, all four icon assets, `manifest.webmanifest`,
-`sw.js`, and `README.md` into `/usr/share/nginx/html/`. nginx serves them with
-sensible cache headers (no-cache for HTML/SW/manifest, immutable for icons).
+## Credits
 
-### Anywhere else
-
-It's a static HTML file — drop it on Vercel, Netlify, Cloudflare Pages,
-GitHub Pages — anything that serves files works. `vercel.json` is included
-for convenience.
-
-```
-npm start          # python3 -m http.server 5173
-```
-
-## Architecture
-
-Everything lives in `index.html`:
-
-- **Game registry** (`GAMES`, `GAME_META`) — flat array of 6 games + per-game
-  level metadata
-- **Engine** — single `requestAnimationFrame` loop that calls
-  `levelInstance.tick(now, elapsed)`; each level is a closure returning
-  `{ id, tapMode, init, tick, handleKey, handleClick, finish }`
-- **Tap zones** — `tapMode` (`"space"`, `"arrows"`, `"colors"`, `"none"`)
-  renders touch buttons on coarse-pointer devices that synthesize keyboard
-  events; 5+ color palettes wrap into a `tap-colors-multi` 2-row layout
-- **Adaptive helper** — `makeAdaptive({ initial, min, max, windowMs })`
-  tracks correct/error counts over a rolling window and steps difficulty
-  up at ≥75% accuracy, down at ≤65%
-- **Storage** — `STORAGE_KEY = 'oneThing.v1'`, v2 schema lives under
-  `STATE.games[gameId]`, migration runs on first load if the stored object
-  is the old v1 shape
-- **Visual identity** — `:root` CSS vars `--bg`, `--ink`, `--muted`,
-  `--accent`, etc. Dark mode flips them under `@media (prefers-color-scheme: dark)`
-- **PWA** — `manifest.webmanifest` + `sw.js` register on `load`. Service worker
-  is cache-first for the app shell and network-first for everything else,
-  with an offline fallback to `/`
-
-## Research foundation
-
-Games chosen for evidence of measurable transfer or established psychometrics:
-
-- Eriksen flanker (Eriksen & Eriksen, 1974)
-- Stroop color-word (Stroop, 1935)
-- Kirchner n-back (Kirchner, 1958)
-- Schulte tables (Schulte, 1955)
-- CPT / vigilance (Rosvold et al., 1956; Mackworth, 1948)
-- SART (Robertson et al., 1997)
-- MOT (Pylyshyn & Storm, 1988)
-- Attentional blink (Raymond et al., 1992)
-- Change blindness (Rensink et al., 1997)
-- Breath counting / mindfulness (Levinson et al., 2014)
-- Adaptive staircase difficulty (Levitt 1971; ACE-X validation, JMIR 2025)
-- Adaptive dual n-back (Jaeggi et al., 2008; ADHD replication, PubMed 2025)
-
-## License
-
-Free to use, modify, fork, and ship. Attribution welcomed, not required.
+Game design: Muhannad Alsaif. Paradigm sources cited per-level inside the app (`?` icon on any level). Research consolidation via Exa search and the lifeart/focus reference repo (MIT).

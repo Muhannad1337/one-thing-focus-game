@@ -813,9 +813,6 @@ const DEFAULT_STATE = {
   streak: 0,             // consecutive-day streak (global)
   lastPlayedDay: null,   // YYYY-MM-DD
   audioEnabled: false,
-  hapticsEnabled: true,  // touch vibration on hit/miss
-  reducedMotion: false,  // disables stage flashes & breath circle pulses
-  typeScale: 1,          // 0.9 / 1 / 1.15
 };
 
 let STATE = loadState();
@@ -1356,150 +1353,6 @@ document.getElementById('homeAudioToggle').addEventListener('click', toggleAudio
 document.getElementById('menuBack').addEventListener('click', backToHome);
 
 // ==========================================================================
-// STATS SHEET — sparklines of last 30 sessions per game + best per game
-// ==========================================================================
-
-function openStats() {
-  const sheet = document.getElementById('statsModal');
-  const body = document.getElementById('statsBody');
-  if (!sheet || !body) return;
-  let totalSessions = 0;
-  for (const id of GAME_IDS) totalSessions += (STATE.games[id]?.sessions?.length || 0);
-  // Build per-game cards
-  const rows = GAMES.map(g => {
-    const gs = STATE.games[g.id];
-    if (!gs) return '';
-    const sessions = (gs.sessions || []).slice(-30);
-    const bestCount = Object.keys(gs.bestScores || {}).length;
-    const lastSession = sessions.length ? sessions[sessions.length - 1] : null;
-    const sparkline = renderSparkline(sessions);
-    return `
-      <div class="stats-card" style="--card-accent:${g.accent}">
-        <div class="stats-card-head">
-          <div>
-            <div class="stats-card-title">${g.name}</div>
-            <div class="stats-card-meta">${sessions.length} session${sessions.length === 1 ? '' : 's'} · ${gs.unlockedLevel}/${g.totalLevels} unlocked · ${bestCount} best scored</div>
-          </div>
-          <div class="stats-card-last">${lastSession ? `last: ${Math.round(lastSession.accuracy * 100)}%` : 'no plays yet'}</div>
-        </div>
-        ${sparkline}
-      </div>
-    `;
-  }).join('');
-  body.innerHTML = `
-    <div class="stats-summary">
-      <div><span class="num">${STATE.streak}</span> day streak</div>
-      <div><span class="num">${totalSessions}</span> total sessions</div>
-      <div><span class="num">${GAME_IDS.reduce((acc, id) => acc + Math.max(0, (STATE.games[id]?.unlockedLevel || 1) - 1), 0)}</span> levels passed</div>
-    </div>
-    <div class="stats-grid">${rows}</div>
-  `;
-  sheet.classList.add('active');
-}
-function renderSparkline(sessions) {
-  if (!sessions.length) return '<div class="spark-empty">play a session to see your trend here</div>';
-  const W = 280, H = 36, PAD = 2;
-  // Accuracy line (0–1)
-  const xs = sessions.map((_, i) => PAD + i * ((W - 2 * PAD) / Math.max(1, sessions.length - 1)));
-  const ys = sessions.map(s => H - PAD - s.accuracy * (H - 2 * PAD));
-  const path = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-  const lastX = xs[xs.length - 1], lastY = ys[ys.length - 1];
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <path d="${path}" fill="none" stroke="var(--card-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
-    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="var(--card-accent)" />
-    <line x1="0" y1="${H - PAD}" x2="${W}" y2="${H - PAD}" stroke="var(--line)" stroke-width="0.5" />
-  </svg>`;
-}
-function closeStats() { document.getElementById('statsModal').classList.remove('active'); }
-
-document.getElementById('homeStatsBtn').addEventListener('click', openStats);
-document.getElementById('statsClose').addEventListener('click', closeStats);
-document.getElementById('statsClose2').addEventListener('click', closeStats);
-
-// ==========================================================================
-// SETTINGS SHEET — audio, haptics, reduced motion, text size, reset
-// ==========================================================================
-
-function applyTypeScale() {
-  document.documentElement.style.setProperty('--type-scale', String(STATE.typeScale || 1));
-  for (const btn of document.querySelectorAll('.seg-btn[data-scale]')) {
-    btn.classList.toggle('is-active', parseFloat(btn.dataset.scale) === STATE.typeScale);
-  }
-}
-function applyReducedMotionClass() {
-  document.documentElement.classList.toggle('motion-reduced', !!STATE.reducedMotion);
-}
-function openSettings() {
-  document.getElementById('setAudio').checked = !!STATE.audioEnabled;
-  document.getElementById('setHaptics').checked = !!STATE.hapticsEnabled;
-  document.getElementById('setReducedMotion').checked = !!STATE.reducedMotion;
-  applyTypeScale();
-  document.getElementById('settingsModal').classList.add('active');
-}
-function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
-
-document.getElementById('homeSettingsBtn').addEventListener('click', openSettings);
-document.getElementById('settingsClose').addEventListener('click', closeSettings);
-document.getElementById('settingsClose2').addEventListener('click', closeSettings);
-
-document.getElementById('setAudio').addEventListener('change', e => {
-  STATE.audioEnabled = e.target.checked;
-  saveState();
-  renderHome();
-  if (STATE.audioEnabled) audio.ensure();
-});
-document.getElementById('setHaptics').addEventListener('change', e => {
-  STATE.hapticsEnabled = e.target.checked;
-  saveState();
-  if (STATE.hapticsEnabled && navigator.vibrate) navigator.vibrate(10);
-});
-document.getElementById('setReducedMotion').addEventListener('change', e => {
-  STATE.reducedMotion = e.target.checked;
-  saveState();
-  applyReducedMotionClass();
-});
-document.querySelectorAll('.seg-btn[data-scale]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    STATE.typeScale = parseFloat(btn.dataset.scale);
-    saveState();
-    applyTypeScale();
-  });
-});
-document.getElementById('resetCurrent').addEventListener('click', () => {
-  const names = GAMES.map((g, i) => `${i + 1}) ${g.name}`).join('\n');
-  const pick = prompt(`Reset which game?\n${names}\n\nEnter number:`);
-  const idx = parseInt(pick || '', 10);
-  if (idx >= 1 && idx <= GAMES.length) {
-    const gid = GAMES[idx - 1].id;
-    if (confirm(`Reset all progress for ${GAMES[idx - 1].name}? This cannot be undone.`)) {
-      STATE.games[gid] = emptyGameProgress();
-      saveState();
-      renderHome();
-      closeSettings();
-    }
-  }
-});
-document.getElementById('resetAll').addEventListener('click', () => {
-  if (confirm('Reset ALL progress across all 8 games? This cannot be undone.')) {
-    STATE = JSON.parse(JSON.stringify(DEFAULT_STATE));
-    saveState();
-    renderHome();
-    closeSettings();
-  }
-});
-
-// Apply settings on load
-applyTypeScale();
-applyReducedMotionClass();
-// Haptic helper used by feedback path
-function vibrateMaybe(pattern) {
-  if (STATE.hapticsEnabled && navigator.vibrate) {
-    try { navigator.vibrate(pattern); } catch {}
-  }
-}
-
-
-// ==========================================================================
 // MODALS
 // ==========================================================================
 
@@ -1784,9 +1637,9 @@ function feedback(kind, text) {
   if (gamePhase === 'practice') {
     showPracticeBubble(text || (kind === 'good' ? 'Hit!' : 'Wrong'), kind);
   }
-  // Haptic feedback on touch devices (only if user enabled it)
-  if (typeof vibrateMaybe === 'function') {
-    vibrateMaybe(kind === 'good' ? [12] : [25, 30, 25]);
+  // Haptic feedback on touch devices (only if user enabled it via Settings)
+  if (STATE.settings && STATE.settings.haptics && navigator.vibrate) {
+    try { navigator.vibrate(kind === 'good' ? [12] : [25, 30, 25]); } catch {}
   }
 }
 
