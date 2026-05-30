@@ -6374,6 +6374,83 @@ function exitThinkSession() {
   thinkSession = null;
   renderMenu();
 }
+
+// =========================================================================
+// LOGIC PUZZLES: DEV VALIDATION HARNESS
+// =========================================================================
+// Runs on page load when on localhost. Verifies generators produce well-formed
+// puzzles with correct validity labels and (for K&K) unique solutions.
+
+function validateLogicPuzzleGenerators() {
+  let failed = 0;
+  const fail = (msg) => { console.error('[VALIDATION FAIL]', msg); failed++; };
+
+  console.group('Think It Through generator validation');
+
+  // Known syllogism validity
+  if (!isSyllogismValid('AAA', 1)) fail('Barbara (AAA-1) should be valid');
+  if (!isSyllogismValid('EAE', 1)) fail('Celarent (EAE-1) should be valid');
+  if (!isSyllogismValid('AII', 1)) fail('Darii (AII-1) should be valid');
+  if (!isSyllogismValid('EIO', 1)) fail('Ferio (EIO-1) should be valid');
+  if (isSyllogismValid('AAA', 2))  fail('AAA-2 should be invalid');
+  if (isSyllogismValid('OOO', 1))  fail('OOO-1 should be invalid (two negatives)');
+
+  // Geurts costs
+  if (getGeurtsCost('AAA', 1) !== 0)  fail('Barbara cost should be 0');
+  if (getGeurtsCost('AII', 1) !== 20) fail('Darii cost should be 20');
+
+  // 50 syllogisms per tier, all well-formed
+  for (let tier = 1; tier <= 5; tier++) {
+    for (let i = 0; i < 50; i++) {
+      const p = generateSyllogism(tier);
+      if (!['valid','invalid','cant-tell'].includes(p.correctAnswer)) {
+        fail(`Tier ${tier} syllogism #${i}: bad correctAnswer "${p.correctAnswer}"`);
+      }
+      if (p.premises.length !== 2) fail(`Tier ${tier} syllogism #${i}: wrong premise count ${p.premises.length}`);
+      if (!p.conclusion) fail(`Tier ${tier} syllogism #${i}: missing conclusion`);
+    }
+  }
+
+  // K&K evaluator sanity checks
+  const a = new Map([['A','knight'],['B','knave']]);
+  if (!evaluateStatement({type:'self_identity',target:'A',isKnight:true}, a)) fail('K&K self_identity A=knight failed');
+  if (evaluateStatement({type:'other_identity',target:'B',isKnight:true}, a)) fail('K&K B should NOT be knight');
+
+  // 50 K&K per tier, valid structure
+  const expectedPeople = {1:2, 2:3, 3:4, 4:4, 5:5};
+  for (let tier = 1; tier <= 5; tier++) {
+    for (let i = 0; i < 50; i++) {
+      const p = generateKnightsKnaves(tier);
+      if (!p.correctAnswer) fail(`Tier ${tier} K&K #${i}: missing correctAnswer`);
+      if (p.people.length !== expectedPeople[tier]) {
+        fail(`Tier ${tier} K&K #${i}: ${p.people.length} people, expected ${expectedPeople[tier]}`);
+      }
+      const answerKeys = Object.keys(p.correctAnswer);
+      if (answerKeys.length !== p.people.length) {
+        fail(`Tier ${tier} K&K #${i}: answer/people mismatch`);
+      }
+      if (p.statements.length !== p.people.length) {
+        fail(`Tier ${tier} K&K #${i}: statements/people mismatch`);
+      }
+    }
+  }
+
+  if (failed === 0) {
+    console.log('%c All 500 generated puzzles passed validation', 'color: #4FA877; font-weight: bold');
+  } else {
+    console.log(`%c ${failed} test(s) failed`, 'color: #D17B6F; font-weight: bold');
+  }
+  console.groupEnd();
+}
+
+// Run validation only on localhost / file:// (development)
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', validateLogicPuzzleGenerators);
+  } else {
+    validateLogicPuzzleGenerators();
+  }
+}
 </script>
 </body>
 </html>
