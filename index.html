@@ -33,7 +33,7 @@
     --muted-soft: #9B9B95;
     --line: #E1E0DA;
     --line-strong: #CBCAC2;
-    --accent: #5B7CFA;
+    --accent: #3F63AE;
     --good: #3D8F62;
     --bad: #C56A5F;
     --panel: #FFFFFF;
@@ -50,6 +50,7 @@
       --line: #2E2E2C;
       --line-strong: #4A4A46;
       --panel: #242422;
+      --accent: #7B9BE0;
     }
   }
   * { box-sizing: border-box; }
@@ -252,10 +253,10 @@
     transition: transform .1s;
   }
   .stats-cell:hover { transform: scale(1.4); }
-  .stats-cell.l1 { background: rgba(91, 124, 250, 0.25); }
-  .stats-cell.l2 { background: rgba(91, 124, 250, 0.55); }
-  .stats-cell.l3 { background: rgba(91, 124, 250, 0.80); }
-  .stats-cell.l4 { background: rgba(91, 124, 250, 1.00); }
+  .stats-cell.l1 { background: rgba(84, 120, 200, 0.25); }
+  .stats-cell.l2 { background: rgba(84, 120, 200, 0.55); }
+  .stats-cell.l3 { background: rgba(84, 120, 200, 0.80); }
+  .stats-cell.l4 { background: rgba(84, 120, 200, 1.00); }
   #statsGames { display: flex; flex-direction: column; gap: 14px; }
   .stats-game {
     background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
@@ -1135,7 +1136,7 @@ let LEVEL_META = {
     short: "Watch one dot. Press SPACE every time it dims.",
     rule: `When the dot <strong>dims</strong>, press <span class="keys"><span class="key">SPACE</span></span> &nbsp;·&nbsp; otherwise, do nothing`,
     duration: 120,
-    accent: "#5B7CFA",
+    accent: "#5478C8",
     science: {
       description: "This level is the simplest form of vigilance: one stimulus, one response, infrequent target events. The Continuous Performance Test (CPT) family — used clinically to assess attention since the 1950s — works exactly like this. The hard part is not noticing the dim; it's keeping attention engaged through the long, boring stretches between dims, when nothing is happening.",
       citation: "Rosvold, Mirsky, Sarason, Bransome & Beck (1956). A continuous performance test of brain damage. Journal of Consulting Psychology.",
@@ -1297,7 +1298,7 @@ const GAMES = [
     id: 'oneThing',
     name: 'One Thing',
     tagline: '12 paradigms — sustained attention, inhibition, dual-task, search, breath',
-    accent: '#5B7CFA',
+    accent: '#5478C8',
     totalLevels: 12,
   },
   {
@@ -1346,7 +1347,7 @@ const GAMES = [
     id: 'stopSignal',
     name: 'Stop Signal',
     tagline: 'Go on every arrow — but stop if the tone plays. Cleanest measure of motor inhibition.',
-    accent: '#7C7DE0',
+    accent: '#5E68B0',
     totalLevels: 5,
   },
   {
@@ -1501,7 +1502,7 @@ function renderMenu() {
       <div class="level-num">${String(i).padStart(2, '0')}</div>
       <div class="level-info">
         <div class="name">${meta.name}</div>
-        <div class="paradigm">${meta.paradigm} · ${Math.round(meta.duration/60*10)/10} min</div>
+        <div class="paradigm">${meta.paradigm}${meta.duration ? ` · ${Math.round(meta.duration/60*10)/10} min` : ''}</div>
       </div>
       <div class="level-stats">
         ${best != null ? `<div class="best">${Math.round(best)}</div><div>best score</div>` : `<div>${locked ? 'locked' : 'not yet played'}</div>`}
@@ -5109,11 +5110,11 @@ function makeSpanLevel(id) {
 // ==========================================================================
 
 GAME_META.stopSignal = {
-  1: { name: 'Easy Stop', paradigm: 'Stop-Signal · long delay', short: 'Tap the arrow. If the tone plays, hold back.', rule: '<span class="keys"><span class="key">←</span><span class="key">→</span></span> for the arrow · <strong>STOP on the tone</strong>', duration: 90, accent: '#7C7DE0', science: { description: 'Classic stop-signal paradigm. Long stop-signal delay (350ms) makes stopping feasible most of the time.', citation: 'Logan & Cowan (1984). On the ability to inhibit thought and action.' }, tutorialBody: `<p>An arrow points left or right. Press the matching key — fast.</p><ul><li>If you hear a high tone before you press, <strong>do NOT press</strong>.</li><li>Going fast helps your score, but stopping cleanly matters more.</li></ul>`, stopProb: 0.30, ssdMs: 350 },
-  2: { name: 'Quicker', paradigm: 'Stop-Signal · faster', short: 'Same rule. Less time to react.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#7C7DE0', science: { description: 'Halving the response window stresses go-RT.', citation: 'Verbruggen & Logan (2008). Response inhibition in the stop-signal paradigm.' }, tutorialBody: `<p>Arrows arrive faster.</p>`, stopProb: 0.30, ssdMs: 280 },
-  3: { name: 'Hard Stop', paradigm: 'Stop-Signal · short delay', short: 'Stop tone plays sooner. Inhibit fast.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#7C7DE0', science: { description: 'Shorter stop-signal delay makes stopping much harder.', citation: 'Aron & Poldrack (2006). Cortical and subcortical contributions to stop signal response inhibition.' }, tutorialBody: `<p>Tone plays sooner — less time to abort.</p>`, stopProb: 0.30, ssdMs: 200 },
-  4: { name: 'Frequent Stops', paradigm: 'Stop-Signal · 50% stops', short: 'Half the trials are stops. Going fast is risky.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#7C7DE0', science: { description: 'When stop trials are 50%, the cost of fast responding rises.', citation: 'Logan, Schachar & Tannock (1997). Impulsivity and inhibitory control.' }, tutorialBody: `<p>Half the trials will be stops. Don't over-anticipate.</p>`, stopProb: 0.50, ssdMs: 280 },
-  5: { name: 'Adaptive', paradigm: 'Stop-Signal · staircase', short: 'The tone shifts to keep you near 50% stop success.', rule: 'Press arrow direction · STOP on the tone · adaptive', duration: 120, accent: '#7C7DE0', science: { description: 'Adaptive SSD (correct stop → +25ms; failed → −25ms) targets 50% inhibition — the canonical SSRT-estimation protocol.', citation: 'Verbruggen et al. (2019). A consensus guide to capturing the ability to inhibit actions with the stop signal task.' }, tutorialBody: `<p>The tone adapts to keep stops at 50% success.</p>`, stopProb: 0.35, ssdMs: 280, adaptive: true },
+  1: { name: 'Easy Stop', paradigm: 'Stop-Signal · long delay', short: 'Tap the arrow. If the tone plays, hold back.', rule: '<span class="keys"><span class="key">←</span><span class="key">→</span></span> for the arrow · <strong>STOP on the tone</strong>', duration: 90, accent: '#5E68B0', science: { description: 'Classic stop-signal paradigm. Long stop-signal delay (350ms) makes stopping feasible most of the time.', citation: 'Logan & Cowan (1984). On the ability to inhibit thought and action.' }, tutorialBody: `<p>An arrow points left or right. Press the matching key — fast.</p><ul><li>If you hear a high tone before you press, <strong>do NOT press</strong>.</li><li>Going fast helps your score, but stopping cleanly matters more.</li></ul>`, stopProb: 0.30, ssdMs: 350 },
+  2: { name: 'Quicker', paradigm: 'Stop-Signal · faster', short: 'Same rule. Less time to react.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#5E68B0', science: { description: 'Halving the response window stresses go-RT.', citation: 'Verbruggen & Logan (2008). Response inhibition in the stop-signal paradigm.' }, tutorialBody: `<p>Arrows arrive faster.</p>`, stopProb: 0.30, ssdMs: 280 },
+  3: { name: 'Hard Stop', paradigm: 'Stop-Signal · short delay', short: 'Stop tone plays sooner. Inhibit fast.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#5E68B0', science: { description: 'Shorter stop-signal delay makes stopping much harder.', citation: 'Aron & Poldrack (2006). Cortical and subcortical contributions to stop signal response inhibition.' }, tutorialBody: `<p>Tone plays sooner — less time to abort.</p>`, stopProb: 0.30, ssdMs: 200 },
+  4: { name: 'Frequent Stops', paradigm: 'Stop-Signal · 50% stops', short: 'Half the trials are stops. Going fast is risky.', rule: 'Press arrow direction · STOP on the tone', duration: 90, accent: '#5E68B0', science: { description: 'When stop trials are 50%, the cost of fast responding rises.', citation: 'Logan, Schachar & Tannock (1997). Impulsivity and inhibitory control.' }, tutorialBody: `<p>Half the trials will be stops. Don't over-anticipate.</p>`, stopProb: 0.50, ssdMs: 280 },
+  5: { name: 'Adaptive', paradigm: 'Stop-Signal · staircase', short: 'The tone shifts to keep you near 50% stop success.', rule: 'Press arrow direction · STOP on the tone · adaptive', duration: 120, accent: '#5E68B0', science: { description: 'Adaptive SSD (correct stop → +25ms; failed → −25ms) targets 50% inhibition — the canonical SSRT-estimation protocol.', citation: 'Verbruggen et al. (2019). A consensus guide to capturing the ability to inhibit actions with the stop signal task.' }, tutorialBody: `<p>The tone adapts to keep stops at 50% success.</p>`, stopProb: 0.35, ssdMs: 280, adaptive: true },
 };
 
 function makeStopSignalLevel(id) {
