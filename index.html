@@ -644,6 +644,119 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   }
   .flanker-cue.opposite { background: #FBF0EE; color: var(--bad); border-color: var(--bad); }
+
+  /* =================================================================
+     LOGIC PUZZLES: Think It Through
+     ================================================================= */
+  #thinkScreen {
+    display: none;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  #thinkScreen.active { display: flex; }
+
+  .think-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .think-header .back-btn {
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 6px 10px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .think-header .think-title { flex: 1; }
+  .think-level-name { font-weight: 600; }
+  .think-progress { font-size: 13px; color: var(--muted); }
+  .think-score { font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  .think-stage {
+    flex: 1;
+    padding: 24px 18px;
+    overflow-y: auto;
+    max-width: 720px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .puzzle-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  .puzzle-premise {
+    font-size: 18px;
+    line-height: 1.55;
+    margin: 8px 0;
+    color: var(--ink);
+  }
+
+  .puzzle-conclusion {
+    font-size: 18px;
+    line-height: 1.55;
+    margin: 16px 0 8px 0;
+    padding-top: 16px;
+    border-top: 1px dashed var(--line);
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .syllogism-answers {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .syllogism-answers button {
+    min-width: 110px;
+    min-height: 48px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .syllogism-answers button:hover { border-color: var(--accent); }
+  .syllogism-answers button:disabled { opacity: 0.5; cursor: default; }
+
+  .puzzle-feedback {
+    margin-top: 22px;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 15px;
+    text-align: center;
+  }
+  .puzzle-feedback.correct { background: rgba(79, 168, 119, 0.15); color: var(--good); border: 1px solid rgba(79, 168, 119, 0.4); }
+  .puzzle-feedback.incorrect { background: rgba(197, 106, 95, 0.15); color: var(--bad); border: 1px solid rgba(197, 106, 95, 0.4); }
+
+  .next-btn {
+    display: block;
+    margin: 18px auto 0;
+    min-height: 48px;
+    padding: 12px 32px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -752,6 +865,19 @@
     <div class="instructions-hint" id="instructionsHint"></div>
     <div class="tap-zone" id="tapZone"></div>
   </div>
+</div>
+
+<!-- Logic puzzles screen (Think It Through game) -->
+<div id="thinkScreen" style="display:none">
+  <div class="think-header">
+    <button class="back-btn" id="thinkBackBtn">←</button>
+    <div class="think-title">
+      <div class="think-level-name" id="thinkLevelName">Level 1</div>
+      <div class="think-progress" id="thinkProgress">Puzzle 1 of 5</div>
+    </div>
+    <div class="think-score" id="thinkScore">0/0</div>
+  </div>
+  <div class="think-stage" id="thinkStage"></div>
 </div>
 
 <!-- TUTORIAL MODAL -->
@@ -5480,6 +5606,70 @@ function generateSyllogism(tier) {
     conclusion,
     correctAnswer: valid ? 'valid' : 'invalid',
   };
+}
+
+// =========================================================================
+// LOGIC PUZZLES: UI RENDERERS
+// =========================================================================
+
+const ANSWER_LABELS = {
+  valid: 'Valid',
+  invalid: 'Invalid',
+  'cant-tell': "Can't tell",
+};
+
+// Renders a syllogism into the think-stage element.
+// onAnswer(answerKey, button, answersContainer) is called when the user picks an answer.
+function renderSyllogismUI(puzzle, stage, onAnswer) {
+  stage.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'puzzle-card';
+
+  puzzle.premises.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'puzzle-premise';
+    div.textContent = p;
+    card.appendChild(div);
+  });
+
+  const conc = document.createElement('div');
+  conc.className = 'puzzle-conclusion';
+  conc.textContent = 'Therefore: ' + puzzle.conclusion;
+  card.appendChild(conc);
+
+  const answersDiv = document.createElement('div');
+  answersDiv.className = 'syllogism-answers';
+  ['valid', 'invalid', 'cant-tell'].forEach(key => {
+    const btn = document.createElement('button');
+    btn.textContent = ANSWER_LABELS[key];
+    btn.addEventListener('click', () => {
+      Array.from(answersDiv.querySelectorAll('button')).forEach(b => b.disabled = true);
+      onAnswer(key, btn, answersDiv);
+    });
+    answersDiv.appendChild(btn);
+  });
+  card.appendChild(answersDiv);
+
+  stage.appendChild(card);
+}
+
+// Shows feedback after the user answers, then a "Next" button to advance.
+function showSyllogismFeedback(puzzle, userAnswer, container, onNext) {
+  const isCorrect = userAnswer === puzzle.correctAnswer;
+  const fb = document.createElement('div');
+  fb.className = 'puzzle-feedback ' + (isCorrect ? 'correct' : 'incorrect');
+  if (isCorrect) {
+    fb.textContent = 'Correct.';
+  } else {
+    fb.textContent = `Not quite. The correct answer was: ${ANSWER_LABELS[puzzle.correctAnswer]}.`;
+  }
+  container.appendChild(fb);
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'next-btn';
+  nextBtn.textContent = 'Next puzzle';
+  nextBtn.addEventListener('click', onNext);
+  container.appendChild(nextBtn);
 }
 </script>
 </body>
