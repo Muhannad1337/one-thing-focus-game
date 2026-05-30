@@ -1,5 +1,19 @@
 # Think It Through Implementation Plan
 
+> **⏸ PAUSED 2026-05-30.** Parallel work was running on IMPROVEMENT_PLAN.md (Phase A through D landed: PWA, dark mode, fonts, adaptive staircase, 3 new attention games, Stats dashboard, Settings sheet, daily challenge). To avoid conflicts, this plan was paused after T1 and T2. Resume when IMPROVEMENT_PLAN.md execution is complete.
+>
+> **Status at pause:**
+> - ✅ T1: Registered thinkItThrough as game #9 (commit `160c861`, after Phase B overwrote the original T1 from `d8c5d2e`)
+> - ✅ T2: Syllogism validity checker committed (commit `8bbf9ac`, all 7 verification tests pass)
+> - ⏸ T3-T13: Pending, paused
+>
+> **Baseline drift to account for when resuming:**
+> - Game count: 5 → 9 (mine becomes #9). My plan's references to "6th game" are now stale.
+> - LEVEL_META access pattern: still works but Phase A introduced `GAME_META.{gameId}[N].accent` for in-constructor access. My session controller bypasses constructors entirely, so this doesn't affect me.
+> - New CSS variables added: `--muted-soft`, `--line-strong`, `--font-body`, `--font-display`, `--type-scale`. My CSS in Task 5/9 should use these where applicable.
+> - Dark mode support added. My CSS rules need dark-mode variants if applicable.
+> - PWA / service worker active. No impact on my code.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a 6th game ("Think It Through") to the existing multi-game hub with procedural syllogism and Knights & Knaves puzzles across 5 difficulty tiers.
