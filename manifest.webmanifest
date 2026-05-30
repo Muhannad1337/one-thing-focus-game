@@ -1,0 +1,23 @@
+{
+  "name": "Focus Games — attention-training mini-games",
+  "short_name": "Focus Games",
+  "description": "Eight focus-training mini-games rooted in attention-science research. Phone or web. No accounts, no analytics.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "theme_color": "#FAFAF7",
+  "background_color": "#FAFAF7",
+  "categories": ["games", "education", "health", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    { "src": "icon.svg",       "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "icon-32.png",    "type": "image/png",     "sizes": "32x32" },
+    { "src": "apple-icon.png", "type": "image/png",     "sizes": "180x180" },
+    { "src": "pwa-icon.png",   "type": "image/png",     "sizes": "512x512", "purpose": "any" },
+    { "src": "pwa-icon.png",   "type": "image/png",     "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

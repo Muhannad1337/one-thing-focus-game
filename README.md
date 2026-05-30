@@ -1,120 +1,104 @@
-# One Thing — A Focus Game
+# Focus Games
 
-A small browser-based focus game grounded in real attention-science research. Six levels, each based on a published cognitive paradigm. Calm visuals. Single-tasking is the actual game.
+> Six focus-training mini-games rooted in attention-science research. Practice
+> single-tasking on phone or web. No accounts, no analytics.
 
-## How to play
+Live: <https://one-thing-focus-game-zkwxfc.cranl.net>
 
-1. Open `index.html` in any modern browser (Chrome, Safari, Firefox, Edge). No install, no server.
-2. Start with Level 1. Pass at ≥75% accuracy to unlock the next.
-3. Play 10–15 minutes a day. The streak counter is the gentle nudge.
-4. Click `?` next to any level to read what cognitive paradigm it's based on.
+## What's inside
 
-Each level walks you in gently:
-- **Tutorial card** — what the rules are.
-- **30-second practice round** — score doesn't count. Every event gets a labeled bubble (`Hit!`, `Don't press for 3`, `That was the WORD — press the INK color`, etc.) so you learn by doing.
-- **"Ready when you are"** — choose to start the real session or practice another 30 seconds.
-- **Live session** — the rule banner stays at the top of the screen the whole time, so you never forget what you're supposed to do.
+| Game | Levels | Trains | Paradigm |
+|---|---|---|---|
+| **One Thing** | 12 | Sustained attention, inhibition, dual-task, search, breath | CPT · SART · Stroop · MOT · Flanker · Visual search · RSVP · Breath pacer · Change blindness |
+| **Schulte 25** | 5 | Visual search, attention anchoring | Schulte table |
+| **Arrow Flanker** | 5 | Selective attention, response inhibition | Eriksen flanker |
+| **Color Conflict** | 5 | Interference control | Stroop color-word |
+| **N-Back** | 5 | Working memory + sustained focus | Kirchner n-back |
+| **Think It Through** | 5 | Logical reasoning under attentional load | Constraint-satisfaction puzzles |
 
-Progress is stored locally on your device (`localStorage`). No accounts, no analytics, nothing leaves your machine.
+Total: **37 levels** across **6 games**.
 
-## The twelve levels
+Each game has its own progression (≥75% accuracy unlocks the next level), its
+own best scores, its own session history. Progress is local-only — stored in
+`localStorage`, never sent anywhere.
 
-| # | Name | Paradigm | Duration | What it trains |
-|---|------|----------|----------|----------------|
-| 1 | Hold the Dot | Sustained Attention (CPT) | 2 min | Vigilance under monotony |
-| 2 | Skip the Three | SART (go/no-go) | 2.5 min | Attention + response inhibition |
-| 3 | The Color Trap | Stroop interference | 3 min | Cognitive control |
-| 4 | Track the Target | Selective attention | 3 min | Filtering distractors |
-| 5 | Two Things at Once | Dual-task / NeuroRacer | 3 min | Divided attention |
-| 6 | The Long Hold | Vigilance decrement | 6 min | Endurance under boredom |
-| 7 | Arrow Storm | Flanker task | 2.5 min | Selective attention to a center target |
-| 8 | The Search | Visual search (T among Ls) | 3 min | Attentional scanning |
-| 9 | Track the Many | Multiple Object Tracking | 3.5 min | Parallel attentional indexing |
-| 10 | The Blink | Attentional blink (RSVP) | 3 min | Temporal attention |
-| 11 | Breath Pacer | Mindful single-pointing | 4 min | Sustained internal focus |
-| 12 | Find What Changed | Change blindness | 3 min | Focused attention to detail |
+## Tech
 
-Each level uses **closed-loop adaptive difficulty** — the same approach used in the FDA-approved EndeavorRx — so the game gets harder as you get better.
+- **Single static HTML file** (`index.html`), ~4,400 lines of vanilla JS
+- **Zero runtime dependencies** — no React, no build step, no bundler
+- **PWA**: manifest + service worker → installable + offline-playable on phone
+- **Touch + keyboard parity**: every game playable with either
+- **Light + dark** via `prefers-color-scheme`
+- **Inter + Space Grotesk** (Google Fonts, `display=swap` so first paint is fast)
+- **Adaptive difficulty** per level via a one-up-four-down staircase helper
+- **Backwards-compatible storage**: v1 → v2 schema migration on first load
 
-The variety isn't decorative: each paradigm targets a different aspect of attention (sustained, selective, divided, temporal, internal). Mixing them across days of practice is more effective than grinding one task — and reduces the boredom that kills daily-practice habits.
+## Deploy
 
-## The science (and the honest caveat)
+### CranL (production)
 
-The six paradigms here are real. They've been used in cognitive psychology research since 1935 (Stroop) up through 2013 (NeuroRacer). The relevant primary citations are inside the game (`?` icon on each level).
-
-**What the literature does say:** practice on these tasks reliably improves your performance on those tasks. Closed-loop adaptive training (NeuroRacer / EndeavorRx) has shown measurable, cleared-by-the-FDA improvements in attention in older adults and children with ADHD.
-
-**What the literature doesn't fully say:** whether "better at the SART" reliably transfers to "better at focusing on real-life tasks" is genuinely debated. Meta-analyses on working-memory training (n-back) show small, mixed far-transfer effects. Most "brain training" apps overpromise here.
-
-**The honest claim of this game:** the daily ritual of single-tasking is the real intervention. The game is a 10–15 minute commitment to sit down and focus on one thing. Track your own scores over weeks — you'll see your numbers improve. Whether that translates to focusing better in the rest of your life is something only you can observe in your own life.
-
-## Mobile + desktop
-
-The game adapts to your device:
-
-- **Desktop**: keyboard (`SPACE`, `← →`, `R B G Y`, `N`) and mouse — same as before.
-- **Mobile / touch**: tap-buttons appear at the bottom of the screen with the same actions. The Visual Search, MOT, and Change-Blindness levels accept finger taps directly on the canvas. Pinch-zoom and pull-to-refresh are disabled inside the game so accidental gestures don't break a session.
-
-The mobile layout uses a `(any-pointer: coarse)` media query, so a laptop in tablet mode or a phone-with-keyboard combo will get touch buttons whenever a coarse pointer is detected — even if a fine pointer is also available.
-
-## File structure
+The live site runs on CranL with a tiny nginx image:
 
 ```
-Focus Game/
-├── index.html       # The whole game (HTML + CSS + JS)
-├── README.md        # This file
-├── vercel.json      # Vercel deployment config
-└── package.json     # Optional npm scripts (start / deploy)
+docker build -t one-thing-focus-game .
+docker run -p 80:80 one-thing-focus-game
 ```
 
-Single file by design. Easier to share, copy, modify. If it grows, split into separate `.css` and `.js` later.
+The Dockerfile copies `index.html`, all four icon assets, `manifest.webmanifest`,
+`sw.js`, and `README.md` into `/usr/share/nginx/html/`. nginx serves them with
+sensible cache headers (no-cache for HTML/SW/manifest, immutable for icons).
 
-## Deploy to Vercel
+### Anywhere else
 
-The game is a static HTML file, so deployment is one command.
+It's a static HTML file — drop it on Vercel, Netlify, Cloudflare Pages,
+GitHub Pages — anything that serves files works. `vercel.json` is included
+for convenience.
 
-**One-time setup:**
-
-```bash
-npm install -g vercel    # if you don't already have it
+```
+npm start          # python3 -m http.server 5173
 ```
 
-**Deploy a preview:**
+## Architecture
 
-```bash
-cd "Focus Game"
-vercel
-```
+Everything lives in `index.html`:
 
-Follow the prompts — first time, link the directory to a new Vercel project. You'll get a preview URL like `one-thing-abc123.vercel.app`.
+- **Game registry** (`GAMES`, `GAME_META`) — flat array of 6 games + per-game
+  level metadata
+- **Engine** — single `requestAnimationFrame` loop that calls
+  `levelInstance.tick(now, elapsed)`; each level is a closure returning
+  `{ id, tapMode, init, tick, handleKey, handleClick, finish }`
+- **Tap zones** — `tapMode` (`"space"`, `"arrows"`, `"colors"`, `"none"`)
+  renders touch buttons on coarse-pointer devices that synthesize keyboard
+  events; 5+ color palettes wrap into a `tap-colors-multi` 2-row layout
+- **Adaptive helper** — `makeAdaptive({ initial, min, max, windowMs })`
+  tracks correct/error counts over a rolling window and steps difficulty
+  up at ≥75% accuracy, down at ≤65%
+- **Storage** — `STORAGE_KEY = 'oneThing.v1'`, v2 schema lives under
+  `STATE.games[gameId]`, migration runs on first load if the stored object
+  is the old v1 shape
+- **Visual identity** — `:root` CSS vars `--bg`, `--ink`, `--muted`,
+  `--accent`, etc. Dark mode flips them under `@media (prefers-color-scheme: dark)`
+- **PWA** — `manifest.webmanifest` + `sw.js` register on `load`. Service worker
+  is cache-first for the app shell and network-first for everything else,
+  with an offline fallback to `/`
 
-**Deploy to production:**
+## Research foundation
 
-```bash
-vercel --prod
-```
+Games chosen for evidence of measurable transfer or established psychometrics:
 
-(Or `npm run deploy` if you've installed dependencies via `npm install`.)
+- Eriksen flanker (Eriksen & Eriksen, 1974)
+- Stroop color-word (Stroop, 1935)
+- Kirchner n-back (Kirchner, 1958)
+- Schulte tables (Schulte, 1955)
+- CPT / vigilance (Rosvold et al., 1956; Mackworth, 1948)
+- SART (Robertson et al., 1997)
+- MOT (Pylyshyn & Storm, 1988)
+- Attentional blink (Raymond et al., 1992)
+- Change blindness (Rensink et al., 1997)
+- Breath counting / mindfulness (Levinson et al., 2014)
+- Adaptive staircase difficulty (Levitt 1971; ACE-X validation, JMIR 2025)
+- Adaptive dual n-back (Jaeggi et al., 2008; ADHD replication, PubMed 2025)
 
-That's it. The site is live at your project's `*.vercel.app` URL.
+## License
 
-## Deploy elsewhere (Netlify / Cloudflare / GitHub Pages / surge)
-
-Because the whole game is one static HTML file with no build step:
-
-- **Netlify**: drag the project folder onto netlify.com/drop.
-- **Cloudflare Pages**: connect the GitHub repo, no build command needed, output directory is `.`.
-- **GitHub Pages**: push to a `gh-pages` branch or enable Pages from the repo settings; serve `index.html`.
-- **surge.sh**: `npx surge` from the project folder.
-
-## Reset progress
-
-Open the browser console on the page and run:
-
-```js
-localStorage.removeItem('oneThing.v1'); location.reload();
-```
-
-## Credits
-
-Game design: Muhannad Alsaif. Paradigm sources cited per-level inside the game.
+Free to use, modify, fork, and ship. Attribution welcomed, not required.
