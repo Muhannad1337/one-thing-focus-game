@@ -5324,6 +5324,38 @@ function isSyllogismValid(mood, figure) {
 
   return true;
 }
+
+// Geurts (2003) cognitive cost weights for syllogistic reasoning.
+// Each step of monotonicity reasoning costs 20 units.
+// Using a "Some Not" (O) proposition anywhere adds 10 units.
+// This is an empirically-grounded difficulty metric from the syllogism literature.
+//
+// Simplified approximation used here:
+// - Base cost = 0 for direct syllogisms (figure 1, easy moods like AAA)
+// - +20 for each non-figure-1 (figure positions are conceptually harder)
+// - +20 if any premise is non-universal (I or O)
+// - +10 if any proposition is O type
+// - +20 if conclusion is invalid (forces "can't tell" reasoning) and knowAboutInvalid is true
+
+function getGeurtsCost(mood, figure, knowAboutInvalid = false) {
+  let cost = 0;
+  if (figure !== 1) cost += 20;
+  const hasNonUniversal = mood.split('').some(p => !PROPOSITIONS[p].universal);
+  if (hasNonUniversal) cost += 20;
+  const hasO = mood.includes('O');
+  if (hasO) cost += 10;
+  if (knowAboutInvalid && !isSyllogismValid(mood, figure)) cost += 20;
+  return cost;
+}
+
+// Tier-to-cost-band mapping (initial calibration; adjust after playtest)
+const TIER_COST_BANDS = {
+  1: { min: 0,  max: 20 },
+  2: { min: 0,  max: 40 },
+  3: { min: 0,  max: 70 },
+  4: { min: 0,  max: 100 },
+  5: { min: 0,  max: 200 },  // intentionally wide for tier 5
+};
 </script>
 </body>
 </html>
