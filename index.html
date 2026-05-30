@@ -87,9 +87,9 @@
   .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
   h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; margin: 0; }
   .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 32px; }
-  .meta { display: flex; gap: 24px; font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+  .meta { display: flex; align-items: center; gap: 24px; font-size: 13px; color: var(--muted); margin-bottom: 32px; }
   .meta .num { color: var(--ink); font-weight: 600; }
-  .meta button.audio-toggle { color: var(--muted); border-bottom: 1px dotted var(--muted); padding: 0; }
+  .meta button.audio-toggle { color: var(--muted); border-bottom: 1px dotted var(--muted); padding: 11px 4px 5px; min-height: 34px; line-height: 1.2; }
   .meta button.audio-toggle:hover { color: var(--ink); }
 
   .levels { display: grid; gap: 12px; }
@@ -198,6 +198,13 @@
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 32px;
+    /* Cap height to the viewport and scroll inside, so tall content (and the
+       close buttons) is always reachable. dvh tracks the iOS Safari toolbar;
+       vh line above is the fallback for older browsers. 48px = modal-bg padding. */
+    max-height: calc(100vh - 48px);
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .modal h2 { font-size: 22px; margin: 0 0 8px; font-weight: 600; }
   .modal .modal-sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
@@ -850,9 +857,9 @@
 
 <!-- STATS SHEET -->
 <div class="modal-bg" id="statsModal">
-  <div class="modal modal-wide">
+  <div class="modal modal-wide" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="statsTitle">
     <div class="modal-head">
-      <h2>Your stats</h2>
+      <h2 id="statsTitle">Your stats</h2>
       <button class="modal-x" id="statsClose" aria-label="Close">✕</button>
     </div>
     <p class="modal-sub" id="statsSummary"></p>
@@ -866,9 +873,9 @@
 
 <!-- SETTINGS SHEET -->
 <div class="modal-bg" id="settingsModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="settingsTitle">
     <div class="modal-head">
-      <h2>Settings</h2>
+      <h2 id="settingsTitle">Settings</h2>
       <button class="modal-x" id="settingsClose" aria-label="Close">✕</button>
     </div>
     <div class="settings-list">
@@ -948,7 +955,7 @@
 
 <!-- TUTORIAL MODAL -->
 <div class="modal-bg" id="tutorialModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="tutTitle">
     <h2 id="tutTitle">Level Title</h2>
     <p class="modal-sub" id="tutParadigm">Paradigm</p>
     <div id="tutBody"></div>
@@ -961,7 +968,7 @@
 
 <!-- SCIENCE MODAL -->
 <div class="modal-bg" id="scienceModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="sciTitle">
     <h2 id="sciTitle">Why this level</h2>
     <p class="modal-sub" id="sciParadigm">Paradigm</p>
     <p id="sciDescription"></p>
@@ -975,7 +982,7 @@
 
 <!-- RESULTS MODAL -->
 <div class="modal-bg" id="resultsModal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" tabindex="-1" aria-labelledby="resTitle">
     <h2 id="resTitle">Session complete</h2>
     <p class="modal-sub" id="resSub"></p>
     <div class="metrics" id="resMetrics"></div>
@@ -1559,26 +1566,18 @@ function openTutorial(levelId) {
   document.getElementById('tutTitle').textContent = `Level ${levelId} — ${meta.name}`;
   document.getElementById('tutParadigm').textContent = `${meta.paradigm} · ${meta.duration} seconds`;
   document.getElementById('tutBody').innerHTML = tutorialBodyHTML(levelId);
-  document.getElementById('tutorialModal').classList.add('active');
+  showModalEl('tutorialModal');
 
-  const startBtn = document.getElementById('tutStart');
-  const cancelBtn = document.getElementById('tutCancel');
-  const onStart = () => {
-    cleanup();
-    document.getElementById('tutorialModal').classList.remove('active');
+  // Assign with .onclick (not addEventListener) so reopening replaces the
+  // handler instead of stacking — robust even when closed via Escape/backdrop.
+  document.getElementById('tutStart').onclick = () => {
+    hideModalEl('tutorialModal');
     audio.ensure();
     startLevel(levelId);
   };
-  const onCancel = () => {
-    cleanup();
-    document.getElementById('tutorialModal').classList.remove('active');
+  document.getElementById('tutCancel').onclick = () => {
+    hideModalEl('tutorialModal');
   };
-  function cleanup() {
-    startBtn.removeEventListener('click', onStart);
-    cancelBtn.removeEventListener('click', onCancel);
-  }
-  startBtn.addEventListener('click', onStart);
-  cancelBtn.addEventListener('click', onCancel);
 }
 function tutorialBodyHTML(levelId) {
   const meta = LEVEL_META[levelId];
@@ -1676,10 +1675,10 @@ function openScience(levelId) {
   document.getElementById('sciDescription').textContent = meta.science.description;
   document.getElementById('sciCitation').textContent = meta.science.citation;
   document.getElementById('sciHonest').textContent = HONEST_NOTE;
-  document.getElementById('scienceModal').classList.add('active');
+  showModalEl('scienceModal');
 }
 document.getElementById('sciClose').addEventListener('click', () => {
-  document.getElementById('scienceModal').classList.remove('active');
+  hideModalEl('scienceModal');
 });
 
 // ==========================================================================
@@ -2052,19 +2051,12 @@ function showResults(levelId, result) {
     verdictMsg = `Accuracy ${Math.round(result.accuracy*100)}% — need ≥75% to ${hasNextLevel ? `unlock the next level` : 'count as a clean run'}. Try again.`;
   }
   v.textContent = verdictMsg;
-  document.getElementById('resultsModal').classList.add('active');
+  showModalEl('resultsModal');
 
-  const playAgain = document.getElementById('resAgain');
-  const back = document.getElementById('resBack');
-  const onAgain = () => { close(); startLevel(levelId); };
-  const onBack = () => { close(); closeGameScreen(); };
-  function close() {
-    document.getElementById('resultsModal').classList.remove('active');
-    playAgain.removeEventListener('click', onAgain);
-    back.removeEventListener('click', onBack);
-  }
-  playAgain.addEventListener('click', onAgain);
-  back.addEventListener('click', onBack);
+  // Assign with .onclick (not addEventListener) so reopening replaces the
+  // handler instead of stacking — robust even when closed via Escape/backdrop.
+  document.getElementById('resAgain').onclick = () => { hideModalEl('resultsModal'); startLevel(levelId); };
+  document.getElementById('resBack').onclick = () => { hideModalEl('resultsModal'); closeGameScreen(); };
 }
 
 // ==========================================================================
@@ -5295,9 +5287,9 @@ feedback = function(kind, text) {
 
 function openStats() {
   renderStats();
-  document.getElementById('statsModal').classList.add('active');
+  showModalEl('statsModal');
 }
-function closeStats() { document.getElementById('statsModal').classList.remove('active'); }
+function closeStats() { hideModalEl('statsModal'); }
 function openSettings() {
   document.getElementById('setAudio').checked = STATE.audioEnabled;
   document.getElementById('setHaptics').checked = !!STATE.settings.haptics;
@@ -5305,9 +5297,9 @@ function openSettings() {
   document.querySelectorAll('.seg-btn').forEach(b =>
     b.classList.toggle('is-active', parseFloat(b.dataset.scale) === (STATE.settings.typeScale || 1))
   );
-  document.getElementById('settingsModal').classList.add('active');
+  showModalEl('settingsModal');
 }
-function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
+function closeSettings() { hideModalEl('settingsModal'); }
 
 function renderStats() {
   let totalSessions = 0;
@@ -5444,6 +5436,64 @@ document.getElementById('resetAll').addEventListener('click', () => {
   for (const id of GAME_IDS) STATE.games[id] = { unlockedLevel: 1, bestScores: {}, sessions: [] };
   STATE.streak = 0; STATE.lastPlayedDay = null;
   saveState(); renderHome(); renderStats();
+});
+
+// ==========================================================================
+// MODAL A11Y CONTROLLER — scroll-lock, focus, Escape, backdrop click
+// ==========================================================================
+// All five modals open/close through showModalEl/hideModalEl so the page
+// behind is frozen (iOS-safe fixed-body technique), focus moves into the
+// dialog and returns to the trigger, Escape and tap-outside both dismiss,
+// and Tab is trapped inside the open modal.
+let _modalScrollY = 0, _modalReturnFocus = null;
+function _lockBg() {
+  _modalScrollY = window.scrollY || 0;
+  const b = document.body.style;
+  b.position = 'fixed'; b.top = `-${_modalScrollY}px`; b.left = '0'; b.right = '0'; b.width = '100%';
+}
+function _unlockBg() {
+  const b = document.body.style;
+  b.position = ''; b.top = ''; b.left = ''; b.right = ''; b.width = '';
+  window.scrollTo(0, _modalScrollY);
+}
+function showModalEl(id) {
+  const bg = typeof id === 'string' ? document.getElementById(id) : id;
+  const firstOpen = !document.querySelector('.modal-bg.active');
+  _modalReturnFocus = document.activeElement;
+  bg.classList.add('active');
+  if (firstOpen) _lockBg();
+  const dlg = bg.querySelector('.modal');
+  if (dlg && dlg.focus) dlg.focus();
+}
+function hideModalEl(id) {
+  const bg = typeof id === 'string' ? document.getElementById(id) : id;
+  bg.classList.remove('active');
+  if (!document.querySelector('.modal-bg.active')) _unlockBg();
+  if (_modalReturnFocus && _modalReturnFocus.focus) {
+    try { _modalReturnFocus.focus(); } catch (e) { /* trigger gone */ }
+    _modalReturnFocus = null;
+  }
+}
+document.addEventListener('keydown', (e) => {
+  const open = document.querySelectorAll('.modal-bg.active');
+  if (!open.length) return;
+  const bg = open[open.length - 1];
+  if (e.key === 'Escape') { e.preventDefault(); hideModalEl(bg); return; }
+  if (e.key === 'Tab') {
+    const f = [...bg.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      .filter(el => el.offsetParent !== null);
+    if (!f.length) { e.preventDefault(); return; }
+    const first = f[0], last = f[f.length - 1];
+    // `inside` is false when focus sits on the dialog container itself
+    // (tabindex=-1, the initial focus target) — treat that like an edge so the
+    // very first Tab/Shift+Tab wraps into the modal instead of escaping it.
+    const inside = f.includes(document.activeElement);
+    if (e.shiftKey && (document.activeElement === first || !inside)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (document.activeElement === last || !inside)) { e.preventDefault(); first.focus(); }
+  }
+});
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('mousedown', (e) => { if (e.target === bg) hideModalEl(bg); });
 });
 
 // ==========================================================================
