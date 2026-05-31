@@ -1,7 +1,7 @@
 // Focus Games — service worker.
 // Cache-first for the app shell, network-first for everything else, offline fallback to '/'.
 // Bump CACHE_VERSION when shipping a release whose cached assets must be evicted.
-const CACHE_VERSION = 'focus-games-v4';
+const CACHE_VERSION = 'focus-games-v5';
 const SHELL = [
   '/',
   '/index.html',

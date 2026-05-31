@@ -66,7 +66,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'cv05' 1, 'cv11' 1, 'ss01' 1;
-    text-rendering: optimizeLegibility;
+    /* auto, not optimizeLegibility: the latter forces kerning/ligature
+       recomputation on every text repaint during scroll. */
+    text-rendering: auto;
   }
   .num, .timer, [data-num], .meta .num, .progress .num,
   .level-num, .level-stats, input[type="number"] {
@@ -665,6 +667,11 @@
      ================================================================= */
   #thinkScreen {
     display: none;
+    /* Fixed full-screen overlay like #gameScreen, so even a stale display:flex
+       can never add to the menu's scroll height (was position:static = in flow). */
+    position: fixed;
+    inset: 0;
+    z-index: 10;
     flex-direction: column;
     height: 100vh;
     background: var(--bg);
@@ -1984,6 +1991,10 @@ function quitLevel() {
 }
 function closeGameScreen() {
   document.getElementById('gameScreen').classList.remove('active');
+  // Also hide the Think It Through screen. It uses inline display toggling
+  // (not the .active class), so any menu-return path must clear it or it gets
+  // left rendered below the menu and bloats the page.
+  document.getElementById('thinkScreen').style.display = 'none';
   document.getElementById('menu').style.display = 'block';
   clearStage();
   renderMenu();
