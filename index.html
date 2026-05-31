@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Eight focus-training mini-games rooted in attention-science research. Each with its own level progression. Playable on phone and web — no accounts, no analytics.">
+<meta name="description" content="Nine focus-training mini-games rooted in attention-science research. Each with its own level progression. Playable on phone and web — no accounts, no analytics.">
 <meta name="theme-color" content="#FAFAF7">
 <meta name="theme-color" content="#1A1A1A" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -846,7 +846,7 @@
   <div class="header">
     <h1>Focus Games</h1>
   </div>
-  <p class="home-tagline">Eight focus-training games rooted in attention-science research. Each with its own level progression. Pick one and practice single-tasking — on phone or web.</p>
+  <p class="home-tagline">Nine focus-training games rooted in attention-science research. Each with its own level progression. Pick one and practice single-tasking — on phone or web.</p>
 
   <div class="meta">
     <div>Streak: <span class="num" id="homeStreak">0</span> days</div>
@@ -1071,7 +1071,12 @@ function recordSessionCompletion(gameId, levelId, score, accuracy) {
   const gs = STATE.games[gameId];
   gs.sessions.push({ levelId, score, accuracy, ts });
   if (gs.sessions.length > 30) gs.sessions = gs.sessions.slice(-30);
-  if (gs.bestScores[levelId] == null || score < gs.bestScores[levelId]) {
+  // Most games score lower-is-better (reaction time, errors). Think It Through
+  // scores higher-is-better (count of correct puzzles), flagged per-game.
+  const higherIsBetter = !!(GAMES_BY_ID[gameId] && GAMES_BY_ID[gameId].higherIsBetter);
+  const isNewBest = gs.bestScores[levelId] == null
+    || (higherIsBetter ? score > gs.bestScores[levelId] : score < gs.bestScores[levelId]);
+  if (isNewBest) {
     gs.bestScores[levelId] = score;
   }
   // Streak (global)
@@ -1377,6 +1382,7 @@ const GAMES = [
     tagline: 'Logic puzzles examiners and scientists actually use. 5 tiers from easy to mind-bending.',
     accent: '#D4A356',
     totalLevels: 5,
+    higherIsBetter: true, // score is the count of correct puzzles (out of 5); more is better
   },
 ];
 const GAMES_BY_ID = Object.fromEntries(GAMES.map(g => [g.id, g]));
@@ -5914,128 +5920,18 @@ function solveKnightsKnaves(people, statementsByPerson) {
 }
 
 // Allowed statement types per tier, and how many statements each person makes.
-// Tiers 1-2 are too small for pure procedural generation (parity symmetry of
-// other_identity statements means they rarely yield unique solutions), so they
-// draw from a curated bank. Tiers 3+ are fully procedural with count and
-// compound statements that break parity reliably.
+// Every tier is generated procedurally and gated on a unique solution (see
+// generateKnightsKnaves). Pure other_identity statements have a parity symmetry
+// (flipping all knights<->knaves preserves consistency), so small puzzles rarely
+// resolve to a single solution; including at least one 'and' breaks that, which
+// is why even the easy tiers 1-2 carry 'and'. Difficulty then ramps by people
+// count and by the extra shapes (or, count, conditional) added at higher tiers.
 const KK_TIER_MECHANICS = {
+  1: { people: 2, types: ['other_identity', 'and'], stmtsPerPerson: 1 },
+  2: { people: 3, types: ['other_identity', 'and'], stmtsPerPerson: 1 },
   3: { people: 4, types: ['other_identity', 'and', 'or'], stmtsPerPerson: 1 },
   4: { people: 4, types: ['other_identity', 'and', 'or', 'count'], stmtsPerPerson: 1 },
   5: { people: 5, types: ['other_identity', 'and', 'or', 'count', 'conditional'], stmtsPerPerson: 1 },
-};
-
-// Curated tier 1 and 2 puzzles. Each is a classic small K&K puzzle with a
-// guaranteed unique solution (verified by solveKnightsKnaves at startup).
-// Templates use letters; the generator substitutes random names.
-const KK_CURATED = {
-  1: [
-    // 2 people. Each puzzle has 2 statements broken into per-person.
-    // Solution: A=knight, B=knave
-    {
-      statements: [
-        { speaker: 'A', text: 'I am the same type as B.' },
-        { speaker: 'B', text: 'A is a Knave.' },
-      ],
-      answer: { A: 'knight', B: 'knave' },
-    },
-    // Solution: A=knave, B=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'B is a Knave.' },
-        { speaker: 'B', text: 'A and I are different types.' },
-      ],
-      answer: { A: 'knave', B: 'knight' },
-    },
-    // Solution: A=knight, B=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'We are both Knights.' },
-        { speaker: 'B', text: 'A is telling the truth.' },
-      ],
-      answer: { A: 'knight', B: 'knight' },
-    },
-    // Solution: A=knave, B=knave
-    {
-      statements: [
-        { speaker: 'A', text: 'At least one of us is a Knight.' },
-        { speaker: 'B', text: 'A is a Knight.' },
-      ],
-      answer: { A: 'knave', B: 'knave' },
-    },
-    // Solution: A=knight, B=knave
-    {
-      statements: [
-        { speaker: 'A', text: 'B is lying.' },
-        { speaker: 'B', text: 'A and I are both Knaves.' },
-      ],
-      answer: { A: 'knight', B: 'knave' },
-    },
-    // Solution: A=knave, B=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'I am a Knight.' },
-        { speaker: 'B', text: 'A is a Knave.' },
-      ],
-      answer: { A: 'knave', B: 'knight' },
-    },
-  ],
-  2: [
-    // 3 people each making 1 statement, more constrained than tier 1.
-    // Solution: A=knight, B=knave, C=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'B is a Knave.' },
-        { speaker: 'B', text: 'C is a Knave.' },
-        { speaker: 'C', text: 'A and B are different types.' },
-      ],
-      answer: { A: 'knight', B: 'knave', C: 'knight' },
-    },
-    // Solution: A=knave, B=knight, C=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'B and C are both Knaves.' },
-        { speaker: 'B', text: 'A is a Knave.' },
-        { speaker: 'C', text: 'A is lying.' },
-      ],
-      answer: { A: 'knave', B: 'knight', C: 'knight' },
-    },
-    // Solution: A=knight, B=knight, C=knave
-    {
-      statements: [
-        { speaker: 'A', text: 'C is a Knave.' },
-        { speaker: 'B', text: 'A is a Knight.' },
-        { speaker: 'C', text: 'B is a Knave.' },
-      ],
-      answer: { A: 'knight', B: 'knight', C: 'knave' },
-    },
-    // Solution: A=knave, B=knave, C=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'C is a Knave.' },
-        { speaker: 'B', text: 'A is a Knight.' },
-        { speaker: 'C', text: 'Exactly one of us is a Knight.' },
-      ],
-      answer: { A: 'knave', B: 'knave', C: 'knight' },
-    },
-    // Solution: A=knight, B=knave, C=knight
-    {
-      statements: [
-        { speaker: 'A', text: 'B is a Knave AND C is a Knight.' },
-        { speaker: 'B', text: 'A and C are both Knaves.' },
-        { speaker: 'C', text: 'A is a Knight.' },
-      ],
-      answer: { A: 'knight', B: 'knave', C: 'knight' },
-    },
-    // Solution: A=knave, B=knight, C=knave
-    {
-      statements: [
-        { speaker: 'A', text: 'I am a Knight.' },
-        { speaker: 'B', text: 'A is a Knave AND C is a Knave.' },
-        { speaker: 'C', text: 'B is a Knave.' },
-      ],
-      answer: { A: 'knave', B: 'knight', C: 'knave' },
-    },
-  ],
 };
 
 const KK_NAMES = ['Alice', 'Bob', 'Carol', 'Dan', 'Eve'];
@@ -6122,42 +6018,11 @@ function makeStatementForTarget(speaker, people, types, assignment) {
   return makeAtomicStatementForTarget(speaker, people, types, assignment);
 }
 
-// Generate a K&K puzzle with a guaranteed unique solution.
-// Tiers 1-2 draw from the curated bank (small templates, names substituted).
-// Tiers 3-5 use procedural target-driven generation, retrying up to maxAttempts
-// times until a unique-solution puzzle is found.
+// Generate a K&K puzzle with a guaranteed unique solution. All tiers are
+// procedural: pick a random target assignment, have each person say something
+// true (if knight) or false (if knave) about it, then keep the puzzle only if
+// the SAT solver confirms that target is the UNIQUE consistent assignment.
 function generateKnightsKnaves(tier, maxAttempts = 200) {
-  // Curated path for tiers 1-2
-  if (KK_CURATED[tier]) {
-    const template = randomChoice(KK_CURATED[tier]);
-    // Substitute placeholder letters (A, B, C) with random names
-    const letters = Object.keys(template.answer);
-    const shuffledNames = [...KK_NAMES].sort(() => Math.random() - 0.5).slice(0, letters.length);
-    const nameMap = {};
-    letters.forEach((letter, i) => nameMap[letter] = shuffledNames[i]);
-    const substitute = (text) => {
-      let out = text;
-      for (const letter of letters) {
-        // Replace whole-word occurrences only (avoid matching inside other words)
-        out = out.replace(new RegExp('\\b' + letter + '\\b', 'g'), nameMap[letter]);
-      }
-      return out;
-    };
-    return {
-      type: 'kk',
-      tier,
-      people: letters.map(l => nameMap[l]),
-      statements: template.statements.map(s => ({
-        speaker: nameMap[s.speaker],
-        text: substitute(s.text),
-      })),
-      correctAnswer: Object.fromEntries(
-        Object.entries(template.answer).map(([letter, type]) => [nameMap[letter], type])
-      ),
-    };
-  }
-
-  // Procedural path for tiers 3-5
   const config = KK_TIER_MECHANICS[tier];
   const people = KK_NAMES.slice(0, config.people);
 
@@ -6193,10 +6058,17 @@ function generateKnightsKnaves(tier, maxAttempts = 200) {
             .join(' Also, '),
         })),
         correctAnswer: answer,
+        // Structured form (knight/knave statement objects) kept for the dev
+        // validation harness to re-solve and assert uniqueness. Unused by the UI.
+        _statementsByPerson: statementsByPerson,
       };
     }
   }
-  // Procedural fallback: pull a tier-3 curated equivalent (shouldn't normally trigger)
+  // Safety net: 200 attempts all failed. Astronomically unlikely for these tier
+  // configs (measured fallback rate 0), but if it ever happens, retry with more
+  // attempts so we still return a puzzle of the CORRECT tier (not a wrong size).
+  if (maxAttempts < 5000) return generateKnightsKnaves(tier, maxAttempts * 5);
+  // Unreachable in practice: a known unique 4-person puzzle as a last resort.
   return {
     type: 'kk',
     tier,
@@ -6502,6 +6374,25 @@ function validateLogicPuzzleGenerators() {
       }
       if (p.statements.length !== p.people.length) {
         fail(`Tier ${tier} K&K #${i}: statements/people mismatch`);
+      }
+      // Correctness + uniqueness: re-solve the structured form. The puzzle MUST
+      // have exactly one consistent assignment, and it must equal the answer the
+      // game marks correct. (This is exactly what the old curated bank failed to
+      // guarantee — tiers 1-2 shipped ambiguous/wrong answers.)
+      if (p._statementsByPerson) {
+        const sols = solveKnightsKnaves(p.people, p._statementsByPerson);
+        if (sols.length !== 1) {
+          fail(`Tier ${tier} K&K #${i}: ${sols.length} solutions (must be exactly 1)`);
+        } else {
+          for (const person of p.people) {
+            if (sols[0].get(person) !== p.correctAnswer[person]) {
+              fail(`Tier ${tier} K&K #${i}: correctAnswer disagrees with solver for ${person}`);
+              break;
+            }
+          }
+        }
+      } else {
+        fail(`Tier ${tier} K&K #${i}: missing structured statements — uniqueness unverifiable`);
       }
     }
   }
